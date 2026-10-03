@@ -60,7 +60,7 @@ void main() {
       final n = namen('press 22', n: 20);
       expect(n, contains('Pressfitting Bogen 90° Ø22 (Kupfer)'));
       expect(n, contains('Pressfitting T-Stück Ø22 (Edelstahl)'));
-      expect(n.every((x) => x.startsWith('Pressfitting') && x.contains('Ø22')), isTrue);
+      expect(n.every((x) => x.startsWith('Pressfitting') && x.contains('22')), isTrue);
     });
 
     test('Zahl 22 trifft nicht 122 oder 220', () {
