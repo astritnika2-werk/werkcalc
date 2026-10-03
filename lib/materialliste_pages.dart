@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'erkennung_page.dart';
 import 'logic.dart';
 import 'materialliste.dart';
 import 'produkt_bild.dart';
@@ -608,21 +609,62 @@ class _MaterialListePageState extends State<MaterialListePage> {
           bottomNavigationBar: SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: scheme.secondary,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-                onPressed: _hinzufuegen,
-                icon: const Icon(Icons.add),
-                label: const Text('Material hinzufügen'),
+              child: Row(
+                children: [
+                  _SchnellKnopf(
+                    icon: Icons.photo_camera,
+                    tooltip: 'Foto/Scan → Liste',
+                    onPressed: () => starteScan(context, widget.baustelleId),
+                  ),
+                  const SizedBox(width: 8),
+                  _SchnellKnopf(
+                    icon: Icons.mic,
+                    tooltip: 'Sprache → Liste',
+                    onPressed: () => starteSprache(context, widget.baustelleId),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: scheme.secondary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: _hinzufuegen,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Material hinzufügen'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _SchnellKnopf extends StatelessWidget {
+  const _SchnellKnopf({required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(56, 56),
+          padding: EdgeInsets.zero,
+        ),
+        onPressed: onPressed,
+        child: Icon(icon, size: 26),
+      ),
     );
   }
 }

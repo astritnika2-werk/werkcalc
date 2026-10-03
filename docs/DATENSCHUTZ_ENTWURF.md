@@ -20,6 +20,11 @@ Alle Berechnungen finden ausschließlich auf Ihrem Gerät statt. Die App sendet 
 Das PDF wird lokal erzeugt. Wenn Sie es teilen oder speichern, entscheiden Sie selbst, mit welcher App oder an wen es geht.
 Für diese Übertragung gelten die Bestimmungen der von Ihnen gewählten App.
 
+## Foto-Scan und Spracheingabe (optional)
+- Foto-Scan: Das Foto wird auf dem Gerät in Text umgewandelt (ML Kit, offline). Es wird nicht gespeichert oder übertragen.
+- Spracheingabe: nutzt die Spracherkennung des Android-Geräts (Google). Je nach Geräteeinstellung wird die Aufnahme zur Erkennung an Google gesendet.
+  Die App speichert keine Aufnahmen. Die Mikrofon-Erlaubnis wird erst bei der ersten Nutzung abgefragt.
+
 ## Werbung und Tracking
 Diese Version enthält keine Werbung und keine Analyse- oder Tracking-Dienste.
 (Wird später Werbung mit Google AdMob ergänzt, muss dieser Text aktualisiert werden: Angaben zu Werbe-ID, Einwilligung

@@ -19,6 +19,10 @@ Was auf dem Gerät gespeichert wird
 PDF-Angebote
 Das PDF wird lokal auf Ihrem Gerät erzeugt. Wenn Sie ein PDF teilen oder speichern, entscheiden Sie selbst, mit welcher App oder an wen es gesendet wird. Für diese Übertragung gelten die Bestimmungen der von Ihnen gewählten App.
 
+Foto-Scan und Spracheingabe (optional)
+• Foto-Scan: Das Foto wird von Ihnen aufgenommen oder gewählt und direkt auf Ihrem Gerät in Text umgewandelt (ML Kit, ohne Internet). Das Foto wird nicht gespeichert und nicht übertragen.
+• Spracheingabe: Die App nutzt die Spracherkennung Ihres Android-Geräts (Google). Je nach Geräteeinstellung wird die Aufnahme dabei zur Erkennung an Google gesendet; die App selbst speichert keine Aufnahmen. Die Mikrofon-Erlaubnis wird erst bei der ersten Nutzung abgefragt.
+
 Werbung und Tracking
 Diese Version enthält keine Werbung und keine Analyse- oder Tracking-Dienste.
 
