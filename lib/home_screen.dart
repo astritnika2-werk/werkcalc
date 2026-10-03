@@ -5,8 +5,9 @@ import 'brand.dart';
 import 'calculators.dart';
 import 'favoriten.dart';
 import 'legal_pages.dart';
+import 'materialliste_pages.dart';
 
-/// Rahmen mit Navigation unten: Start, Favoriten, PDF, Mehr.
+/// Rahmen mit Navigation unten: Start, Listen, Favoriten, PDF, Mehr.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -27,6 +28,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const HomeTab(),
+      const MaterialListenTab(),
       const FavoritenTab(),
       const AngebotPage(),
       const MoreTab(),
@@ -39,6 +41,7 @@ class _AppShellState extends State<AppShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Start'),
+          NavigationDestination(icon: Icon(Icons.checklist), label: 'Listen'),
           NavigationDestination(icon: Icon(Icons.star), label: 'Favoriten'),
           NavigationDestination(icon: Icon(Icons.description), label: 'PDF'),
           NavigationDestination(icon: Icon(Icons.more_horiz), label: 'Mehr'),
