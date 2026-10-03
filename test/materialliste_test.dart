@@ -314,7 +314,7 @@ void main() {
         'Pressfitting Übergang Ø22 × ¾" Außengewinde (Kupfer)',
         'Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)', 'Gewindefitting Winkel 45° IG/AG 1" (Edelstahl)',
         'Schweißbogen 90° lange Ausführung DN 50 (Stahl)', 'PP-R Winkel 90° Ø25',
-        'PVC-U Winkel 45° Ø50', 'HT-Abzweig 45° DN 100 / 100', 'KG-Abzweig 87° DN 150 / 100',
+        'PVC-U Winkel 45° Ø50', 'HT-Abzweig 45° DN 100/100', 'KG-Abzweig 87° DN 160/110',
       ]) {
         expect(namen, contains(n), reason: n);
       }

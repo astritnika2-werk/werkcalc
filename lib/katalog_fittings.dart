@@ -323,7 +323,7 @@ void _abwasserFittings(KatalogBaukasten b) {
   const k = kAbwasser;
   const u = 'Kanal-Bögen & Abzweige';
   const htDn = [32, 40, 50, 70, 100, 125, 150];
-  const kgDn = [100, 125, 150, 200, 250, 300];
+  const kgDn = [110, 125, 160, 200, 250, 315];
   for (final dn in htDn) {
     final dim = 'DN $dn';
     // Kleine Nennweiten (32, 40): nur 45° und 87°.
@@ -340,25 +340,25 @@ void _abwasserFittings(KatalogBaukasten b) {
         typ: 'Zubehör', material: 'HT (PP)', dim: dim);
     if (dn >= 50) {
       for (final w in const [45, 67, 87]) {
-        b.add(k, u, 'HT-Abzweig', 'HT-Abzweig $w° DN $dn / $dn', 'Stk.',
-            typ: 'Abzweig', material: 'HT (PP)', dim: 'DN $dn / $dn');
+        b.add(k, u, 'HT-Abzweig', 'HT-Abzweig $w° DN $dn/$dn', 'Stk.',
+            typ: 'Abzweig', material: 'HT (PP)', dim: 'DN $dn/$dn');
       }
       b.add(k, u, 'HT-Reinigungsrohr', 'HT-Reinigungsrohr DN $dn', 'Stk.',
           typ: 'Zubehör', material: 'HT (PP)', dim: dim);
     }
     if (dn >= 50 && dn <= 100) {
-      b.add(k, u, 'HT-Abzweig', 'HT-Doppelabzweig 87° DN $dn / $dn', 'Stk.',
-          typ: 'Abzweig', material: 'HT (PP)', dim: 'DN $dn / $dn');
+      b.add(k, u, 'HT-Abzweig', 'HT-Doppelabzweig 87° DN $dn/$dn', 'Stk.',
+          typ: 'Abzweig', material: 'HT (PP)', dim: 'DN $dn/$dn');
     }
   }
   for (final p in _paare(htDn, stufen: 2)) {
-    b.add(k, u, 'HT-Reduzierung', 'HT-Reduzierung DN ${p[0]} × DN ${p[1]}', 'Stk.',
-        typ: 'Reduzierung', material: 'HT (PP)', dim: 'DN ${p[0]} × DN ${p[1]}');
+    b.add(k, u, 'HT-Reduzierung', 'HT-Reduzierung DN ${p[0]}/${p[1]}', 'Stk.',
+        typ: 'Reduzierung', material: 'HT (PP)', dim: 'DN ${p[0]}/${p[1]}');
   }
   for (final p in const [[100, 50], [100, 70], [125, 100], [150, 100]]) {
     for (final w in const [45, 87]) {
-      b.add(k, u, 'HT-Abzweig', 'HT-Abzweig $w° DN ${p[0]} / ${p[1]}', 'Stk.',
-          typ: 'Abzweig', material: 'HT (PP)', dim: 'DN ${p[0]} / ${p[1]}');
+      b.add(k, u, 'HT-Abzweig', 'HT-Abzweig $w° DN ${p[0]}/${p[1]}', 'Stk.',
+          typ: 'Abzweig', material: 'HT (PP)', dim: 'DN ${p[0]}/${p[1]}');
     }
   }
   for (final dn in kgDn) {
@@ -374,8 +374,8 @@ void _abwasserFittings(KatalogBaukasten b) {
     b.add(k, u, 'KG-Muffe', 'KG-Muffenstopfen DN $dn', 'Stk.',
         typ: 'Zubehör', material: 'KG (PVC-U)', dim: dim);
     for (final w in const [45, 67, 87]) {
-      b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN $dn / $dn', 'Stk.',
-          typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN $dn / $dn');
+      b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN $dn/$dn', 'Stk.',
+          typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN $dn/$dn');
     }
     if (dn <= 200) {
       b.add(k, u, 'KG-Reinigungsrohr', 'KG-Reinigungsrohr DN $dn', 'Stk.',
@@ -383,13 +383,13 @@ void _abwasserFittings(KatalogBaukasten b) {
     }
   }
   for (final p in _paare(kgDn, stufen: 2)) {
-    b.add(k, u, 'KG-Reduzierung', 'KG-Reduzierung DN ${p[0]} × DN ${p[1]}', 'Stk.',
-        typ: 'Reduzierung', material: 'KG (PVC-U)', dim: 'DN ${p[0]} × DN ${p[1]}');
+    b.add(k, u, 'KG-Reduzierung', 'KG-Reduzierung DN ${p[0]}/${p[1]}', 'Stk.',
+        typ: 'Reduzierung', material: 'KG (PVC-U)', dim: 'DN ${p[0]}/${p[1]}');
   }
-  for (final p in const [[150, 100], [200, 150], [250, 200], [300, 250]]) {
+  for (final p in const [[160, 110], [200, 160], [250, 200], [315, 250]]) {
     for (final w in const [45, 87]) {
-      b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN ${p[0]} / ${p[1]}', 'Stk.',
-          typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN ${p[0]} / ${p[1]}');
+      b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN ${p[0]}/${p[1]}', 'Stk.',
+          typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN ${p[0]}/${p[1]}');
     }
   }
 }

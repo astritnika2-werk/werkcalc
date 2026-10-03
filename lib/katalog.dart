@@ -357,6 +357,7 @@ List<KatalogArtikel> baueKatalog() {
   }
   for (final grad in const [15, 30, 45, 67, 87]) {
     for (final dn in htDn) {
+      if (dn <= 40 && grad != 45 && grad != 87) continue; // gibt es nicht
       b.add(kKatKanal, 'Kanal-Bögen & Abzweige', 'HT-Bogen', 'HT-Bogen $grad° DN $dn', 'Stk.', typ: 'Bogen');
     }
   }
