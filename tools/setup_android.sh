@@ -45,6 +45,24 @@ for f in android/app/build.gradle android/app/build.gradle.kts; do
   [ -f "$f" ] && sed -i -E 's/minSdk(Version)? ?=? ?flutter\.minSdkVersion/minSdk = 24/' "$f"
 done || true
 
+# ML Kit: R8 meldet fehlende (nicht benutzte) Sprach-Klassen -> Verkleinerung aus
+python3 - <<'PY'
+import re
+for p in ("android/app/build.gradle.kts", "android/app/build.gradle"):
+    try:
+        s = open(p, encoding="utf-8").read()
+    except FileNotFoundError:
+        continue
+    if "isMinifyEnabled" in s or "minifyEnabled" in s:
+        continue
+    if p.endswith(".kts"):
+        add = "\n            isMinifyEnabled = false\n            isShrinkResources = false"
+    else:
+        add = "\n            minifyEnabled false\n            shrinkResources false"
+    s = re.sub(r"(signingConfig\s*=?\s*signingConfigs[^\n]*)", lambda m: m.group(1) + add, s, count=1)
+    open(p, "w", encoding="utf-8").write(s)
+PY
+
 flutter pub get
 dart run flutter_launcher_icons
 
