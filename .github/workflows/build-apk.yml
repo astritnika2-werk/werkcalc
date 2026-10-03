@@ -1,0 +1,55 @@
+name: Build APK
+
+# Baut automatisch eine installierbare APK (zum Testen) und ein AAB (für Google Play).
+# Nutzung: Projekt in ein GitHub-Repository hochladen, dann unter
+# "Actions" -> "Build APK" -> "Run workflow" starten. Danach unter
+# "Artifacts" die Datei "werkcalc-apk" herunterladen.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Erzeugt android/ (applicationId de.werkcalc.werkcalc), setzt den Namen
+      # "WerkCalc" und das App-Icon. Die Kennung nach der Veröffentlichung NIE ändern.
+      - name: Android-Projekt einrichten
+        run: bash tools/setup_android.sh
+
+      - name: Analyse (Hinweise blockieren den Build nicht)
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: Tests
+        run: flutter test
+
+      - name: APK bauen (Test-Installation)
+        run: flutter build apk --release
+
+      - name: AAB bauen (für Google Play)
+        run: flutter build appbundle --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: werkcalc-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: werkcalc-aab
+          path: build/app/outputs/bundle/release/app-release.aab
