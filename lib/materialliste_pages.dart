@@ -857,6 +857,125 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
       );
   }
 
+  /// Große Ansicht mit allen Angaben des Artikels.
+  Future<void> _zeigeDetail(KatalogArtikel a) async {
+    final scheme = Theme.of(context).colorScheme;
+    final zeilen = <MapEntry<String, String>>[
+      MapEntry('Material', a.werkstoffAnzeige),
+      MapEntry('Dimension', a.massAnzeige),
+      MapEntry('Typ / Ausführung', a.artAnzeige),
+      MapEntry('Kategorie', '${a.kategorie} › ${a.unter}'),
+      MapEntry('Produktfamilie', a.familie),
+      MapEntry('Einheit', a.einheit),
+      MapEntry('Hersteller', a.hersteller),
+      MapEntry('Artikelnummer', a.artikelnummer),
+      MapEntry('EAN', a.ean),
+      if (a.preis != null) MapEntry('Preis', '${a.preis!.toStringAsFixed(2).replaceAll('.', ',')} €'),
+      MapEntry('Großhändler', a.grosshaendler),
+      if (a.lagerbestand != null) MapEntry('Lagerbestand', '${a.lagerbestand}'),
+      ...a.details.entries,
+    ].where((e) => e.value.trim().isNotEmpty).toList();
+    final foto = _store.fotoFuer(a);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final menge = _mengen[a.name] ?? 1;
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.88),
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                children: [
+                  Center(
+                    child: ProduktBild(
+                      artikel: a,
+                      fallback: _kategorieIcon(a.kategorie),
+                      groesse: 220,
+                      foto: foto,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      foto == null ? 'Skizze' : 'Foto',
+                      style: TextStyle(fontSize: 12, color: scheme.outline),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(a.name, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  for (final z in zeilen)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 140,
+                            child: Text(z.key, style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant)),
+                          ),
+                          Expanded(
+                            child: Text(z.value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      IconButton.outlined(
+                        tooltip: 'Weniger',
+                        icon: const Icon(Icons.remove),
+                        onPressed: menge > 1
+                            ? () {
+                                setSheet(() {});
+                                setState(() => _mengen[a.name] = menge - 1);
+                              }
+                            : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          '${formatMenge(menge)} ${a.einheit}',
+                          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton.outlined(
+                        tooltip: 'Mehr',
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          setSheet(() {});
+                          setState(() => _mengen[a.name] = menge + 1);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await _direktHinzufuegen(a);
+                    },
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text('Hinzufügen'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _artikelKachel(KatalogArtikel a, Set<String> inListe) {
     final drin = inListe.contains(a.name);
     final scheme = Theme.of(context).colorScheme;
@@ -877,11 +996,15 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
           children: [
             InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: () => _waehle(a),
+              onTap: () => _zeigeDetail(a),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ProduktBild(artikel: a, fallback: _kategorieIcon(a.kategorie)),
+                  ProduktBild(
+                    artikel: a,
+                    fallback: _kategorieIcon(a.kategorie),
+                    foto: _store.fotoFuer(a),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

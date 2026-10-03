@@ -2,6 +2,7 @@
 // Die Skizze zeigt die Bauform und die Enden des Teils (Winkel, Innen/Außen,
 // Gewinde, Muffe), also genau die Angaben, nach denen man auswählt.
 
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,30 @@ enum BildArt {
   rohr,
   ventil,
   pumpe,
+  wc,
+  wcSitz,
+  waschtisch,
+  armatur,
+  dusche,
+  wanne,
+  siphon,
+  spuelkasten,
+  vorwand,
+  drueckerplatte,
+  heizkoerper,
+  thermostat,
+  ausdehnung,
+  waermetauscher,
+  speicher,
+  waermepumpe,
+  klimageraet,
+  lueftungsgeraet,
+  isolierung,
+  schelle,
+  schraube,
+  werkzeug,
+  filter,
+  manometer,
   sonst,
 }
 
@@ -122,11 +147,85 @@ BildInfo bildInfo(KatalogArtikel a) {
     if (l.contains('flansch')) return mk(BildArt.flansch);
     if (kat == 'Rohre' || l.contains('rohr')) return mk(BildArt.rohr);
   }
-  if (l.contains('ventil') || l.contains('kugelhahn') || l.contains('hahn')) {
-    return mk(BildArt.ventil);
+  bool hat(List<String> w) => w.any(l.contains);
+  final istWerkzeug = kat == 'Werkzeug';
+  final istMontage = kat == 'Installation / Montage';
+
+  if (hat(['isolier', 'rohrschale', 'dämm', 'flex-schlauch'])) return mk(BildArt.isolierung);
+  if (hat(['siphon', 'geruchverschluss', 'ablaufgarnitur'])) return mk(BildArt.siphon);
+  if (hat(['armatur', 'mischer', 'wasserhahn', 'wandauslauf'])) return mk(BildArt.armatur);
+  if (hat(['ventil', 'kugelhahn', 'hahn', 'absperrklappe', 'rückschlag'])) return mk(BildArt.ventil);
+  if (hat(['thermostat'])) return mk(BildArt.thermostat);
+  if (hat(['wc-sitz'])) return mk(BildArt.wcSitz);
+  if (hat(['spülkasten'])) return mk(BildArt.spuelkasten);
+  if (hat(['vorwandelement'])) return mk(BildArt.vorwand);
+  if (hat(['drückerplatte', 'betätigungsplatte'])) return mk(BildArt.drueckerplatte);
+  if (l.startsWith('wc ') || l == 'wc' || hat(['urinal', 'stand-wc', 'wand-wc', 'dusch-wc'])) {
+    return mk(BildArt.wc);
   }
-  if (l.contains('pumpe')) return mk(BildArt.pumpe);
+  if (hat(['waschtisch', 'waschbecken', 'handwaschbecken'])) return mk(BildArt.waschtisch);
+  if (hat(['badewanne', 'duschwanne', 'wanne'])) return mk(BildArt.wanne);
+  if (hat(['dusch', 'brause'])) return mk(BildArt.dusche);
+  if (hat(['wärmepumpe'])) return mk(BildArt.waermepumpe);
+  if (hat(['pumpe'])) return mk(BildArt.pumpe);
+  if (hat(['heizkörper', 'radiator'])) return mk(BildArt.heizkoerper);
+  if (hat(['ausdehnungsgefäß', 'ausdehnungsgefäss', 'druckausdehnung'])) {
+    return mk(BildArt.ausdehnung);
+  }
+  if (hat(['wärmetauscher', 'wärmeübertrager'])) return mk(BildArt.waermetauscher);
+  if (hat(['speicher', 'boiler'])) return mk(BildArt.speicher);
+  if (hat(['klimagerät', 'split', 'außengerät', 'innengerät'])) return mk(BildArt.klimageraet);
+  if (hat(['lüftungsgerät', 'wohnraumlüftung', 'ventilator', 'lüfter'])) {
+    return mk(BildArt.lueftungsgeraet);
+  }
+  if (hat(['manometer', 'thermometer', 'wasserzähler'])) return mk(BildArt.manometer);
+  if (hat(['filter', 'druckminderer', 'enthärt'])) return mk(BildArt.filter);
+  if (hat(['schelle'])) return mk(BildArt.schelle);
+  if (istMontage && hat(['schraube', 'dübel', 'gewindestange', 'mutter', 'haken'])) {
+    return mk(BildArt.schraube);
+  }
+  if (istWerkzeug) return mk(BildArt.werkzeug);
   return mk(BildArt.sonst);
+}
+
+/// Farbe der Skizze: nach Bauteil (Keramik, Chrom …) oder nach Werkstoff.
+Color skizzenFarbe(BildInfo info, String werkstoff) {
+  switch (info.art) {
+    case BildArt.wc:
+    case BildArt.wcSitz:
+    case BildArt.waschtisch:
+    case BildArt.wanne:
+    case BildArt.dusche:
+    case BildArt.heizkoerper:
+    case BildArt.klimageraet:
+    case BildArt.waermepumpe:
+    case BildArt.lueftungsgeraet:
+    case BildArt.spuelkasten:
+    case BildArt.drueckerplatte:
+      return const Color(0xFFEEF1F5);
+    case BildArt.armatur:
+    case BildArt.thermostat:
+    case BildArt.manometer:
+    case BildArt.filter:
+      return const Color(0xFFB8C2CC);
+    case BildArt.ausdehnung:
+      return const Color(0xFFD64545);
+    case BildArt.speicher:
+    case BildArt.waermetauscher:
+      return const Color(0xFF8FA6BC);
+    case BildArt.isolierung:
+      return const Color(0xFF424B54);
+    case BildArt.werkzeug:
+      return const Color(0xFFC0392B);
+    case BildArt.schraube:
+    case BildArt.schelle:
+      return const Color(0xFFA9B3BC);
+    case BildArt.vorwand:
+    case BildArt.siphon:
+      return werkstoff.isEmpty ? const Color(0xFF7F8FA9) : werkstoffFarbe(werkstoff);
+    default:
+      return werkstoffFarbe(werkstoff);
+  }
 }
 
 /// Farbe nach Werkstoff.
@@ -151,21 +250,20 @@ class ProduktBild extends StatelessWidget {
     required this.artikel,
     required this.fallback,
     this.groesse = 72,
+    this.foto,
   });
 
   final KatalogArtikel artikel;
   final IconData fallback;
   final double groesse;
 
-  @override
-  Widget build(BuildContext context) {
+  /// Pfad eines echten Produktfotos (Asset oder Datei). Fehlt es oder lässt es
+  /// sich nicht laden, zeigt die Karte die Skizze – gleiche Größe, gleiches Layout.
+  final String? foto;
+
+  Widget _skizze(BuildContext context, BoxDecoration rahmen) {
     final info = bildInfo(artikel);
     final scheme = Theme.of(context).colorScheme;
-    final rahmen = BoxDecoration(
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: scheme.outlineVariant),
-    );
     if (info.art == BildArt.sonst) {
       return Container(
         width: groesse,
@@ -178,15 +276,45 @@ class ProduktBild extends StatelessWidget {
       width: groesse,
       height: groesse,
       decoration: rahmen,
-      padding: const EdgeInsets.all(4),
+      padding: EdgeInsets.all(groesse * 0.055),
       child: CustomPaint(
         painter: _SkizzenMaler(
           info,
-          werkstoffFarbe(artikel.werkstoffAnzeige),
+          skizzenFarbe(info, artikel.werkstoffAnzeige),
           scheme.onSurface.withValues(alpha: 0.75),
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final rahmen = BoxDecoration(
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: scheme.outlineVariant),
+    );
+    final f = foto;
+    if (f != null && f.isNotEmpty) {
+      Widget fehler(BuildContext c, Object e, StackTrace? st) => _skizze(c, rahmen);
+      final bild = f.startsWith('assets/')
+          ? Image.asset(f, fit: BoxFit.contain, errorBuilder: fehler)
+          : Image.file(File(f), fit: BoxFit.contain, errorBuilder: fehler);
+      return Container(
+        width: groesse,
+        height: groesse,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        padding: const EdgeInsets.all(3),
+        child: bild,
+      );
+    }
+    return _skizze(context, rahmen);
   }
 }
 
@@ -377,10 +505,288 @@ class _SkizzenMaler extends CustomPainter {
         canvas.drawPath(d, o..strokeWidth = 1.5);
         break;
         }
-      case BildArt.sonst:
+      default:
+        _geraete(canvas);
         break;
     }
     canvas.restore();
+  }
+
+  Paint get _fuell => Paint()..color = farbe;
+  Paint get _rand => Paint()
+    ..color = kontur
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.6
+    ..strokeJoin = StrokeJoin.round
+    ..strokeCap = StrokeCap.round;
+
+  void _form(Canvas c, Path p, {Color? farbeX}) {
+    c.drawPath(p, Paint()..color = farbeX ?? farbe);
+    c.drawPath(p, _rand);
+  }
+
+  void _rr(Canvas c, double l, double t, double r, double b, double rad, {Color? farbeX}) {
+    final p = Path()..addRRect(RRect.fromLTRBR(l, t, r, b, Radius.circular(rad)));
+    _form(c, p, farbeX: farbeX);
+  }
+
+  void _oval(Canvas c, double l, double t, double r, double b, {Color? farbeX}) {
+    final p = Path()..addOval(Rect.fromLTRB(l, t, r, b));
+    _form(c, p, farbeX: farbeX);
+  }
+
+  void _linie(Canvas c, double x1, double y1, double x2, double y2, {double w = 1.6}) {
+    c.drawLine(Offset(x1, y1), Offset(x2, y2), _rand..strokeWidth = w);
+  }
+
+  static const Color _dunkel = Color(0xFF8A96A3);
+
+  void _geraete(Canvas c) {
+    switch (info.art) {
+      case BildArt.wc:
+        _rr(c, 20, 6, 44, 26, 3);
+        _rr(c, 26, 3, 38, 8, 2, farbeX: _dunkel);
+        _oval(c, 12, 26, 52, 50);
+        _oval(c, 20, 31, 44, 44, farbeX: Colors.white);
+        _rr(c, 22, 48, 42, 58, 3);
+        break;
+      case BildArt.wcSitz:
+        _oval(c, 10, 14, 54, 52);
+        _oval(c, 19, 22, 45, 44, farbeX: Colors.white);
+        _rr(c, 22, 8, 42, 15, 2, farbeX: _dunkel);
+        break;
+      case BildArt.waschtisch:
+        {
+          final p = Path()
+            ..moveTo(6, 26)
+            ..lineTo(58, 26)
+            ..lineTo(52, 48)
+            ..quadraticBezierTo(32, 58, 12, 48)
+            ..close();
+          _form(c, p);
+          _oval(c, 14, 29, 50, 42, farbeX: Colors.white);
+          _linie(c, 32, 26, 32, 14, w: 3);
+          _linie(c, 32, 14, 42, 14, w: 3);
+          _linie(c, 42, 14, 42, 19, w: 2.4);
+        }
+        break;
+      case BildArt.armatur:
+        _rr(c, 24, 40, 40, 58, 3);
+        _rr(c, 28, 20, 36, 42, 2);
+        {
+          final p = Path()
+            ..moveTo(32, 24)
+            ..quadraticBezierTo(32, 8, 46, 10)
+            ..lineTo(52, 10)
+            ..lineTo(52, 17)
+            ..lineTo(47, 17)
+            ..quadraticBezierTo(40, 17, 40, 26)
+            ..close();
+          _form(c, p);
+        }
+        _rr(c, 14, 14, 30, 20, 2, farbeX: _dunkel);
+        break;
+      case BildArt.dusche:
+        _oval(c, 10, 8, 44, 26);
+        _linie(c, 44, 17, 56, 17, w: 3);
+        _linie(c, 56, 17, 56, 56, w: 3);
+        for (var i = 0; i < 4; i++) {
+          final x = 16.0 + i * 8;
+          _linie(c, x, 32, x - 2, 42, w: 1.4);
+          _linie(c, x + 3, 40, x + 1, 50, w: 1.4);
+        }
+        break;
+      case BildArt.wanne:
+        {
+          final p = Path()
+            ..moveTo(4, 24)
+            ..lineTo(60, 24)
+            ..lineTo(56, 46)
+            ..quadraticBezierTo(54, 52, 46, 52)
+            ..lineTo(18, 52)
+            ..quadraticBezierTo(10, 52, 8, 46)
+            ..close();
+          _form(c, p);
+          _linie(c, 12, 30, 52, 30, w: 1.2);
+          _rr(c, 10, 52, 18, 58, 1);
+          _rr(c, 46, 52, 54, 58, 1);
+          _linie(c, 48, 10, 48, 22, w: 3);
+          _linie(c, 48, 10, 38, 10, w: 3);
+        }
+        break;
+      case BildArt.siphon:
+        {
+          final p = Path()
+            ..moveTo(14, 6)
+            ..lineTo(14, 34)
+            ..cubicTo(14, 58, 42, 58, 42, 34)
+            ..lineTo(42, 26)
+            ..lineTo(58, 26);
+          c.drawPath(p, Paint()
+            ..color = kontur
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = _t + 2);
+          c.drawPath(p, Paint()
+            ..color = farbe
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = _t);
+          _rr(c, 8, 4, 20, 12, 2, farbeX: _dunkel);
+        }
+        break;
+      case BildArt.spuelkasten:
+        _rr(c, 8, 14, 56, 54, 5);
+        _rr(c, 8, 8, 56, 16, 3, farbeX: _dunkel);
+        _oval(c, 25, 28, 39, 40, farbeX: Colors.white);
+        break;
+      case BildArt.vorwand:
+        _rr(c, 8, 4, 56, 60, 2, farbeX: Colors.white);
+        _linie(c, 14, 4, 14, 60, w: 3);
+        _linie(c, 50, 4, 50, 60, w: 3);
+        _rr(c, 20, 10, 44, 30, 3);
+        _rr(c, 28, 34, 36, 54, 2, farbeX: _dunkel);
+        break;
+      case BildArt.drueckerplatte:
+        _rr(c, 8, 12, 56, 52, 5);
+        _oval(c, 17, 22, 31, 36, farbeX: Colors.white);
+        _oval(c, 37, 22, 51, 36, farbeX: Colors.white);
+        break;
+      case BildArt.heizkoerper:
+        _rr(c, 6, 10, 58, 52, 3);
+        for (var i = 0; i < 7; i++) {
+          _linie(c, 13.0 + i * 6.3, 14, 13.0 + i * 6.3, 48, w: 1.3);
+        }
+        _rr(c, 9, 52, 15, 58, 1, farbeX: _dunkel);
+        _rr(c, 49, 52, 55, 58, 1, farbeX: _dunkel);
+        break;
+      case BildArt.thermostat:
+        _rr(c, 8, 22, 22, 42, 2, farbeX: _dunkel);
+        _rr(c, 22, 14, 52, 50, 6);
+        _oval(c, 28, 24, 46, 40, farbeX: Colors.white);
+        _linie(c, 37, 32, 41, 27, w: 1.8);
+        break;
+      case BildArt.ausdehnung:
+        _oval(c, 10, 6, 54, 50);
+        _linie(c, 12, 28, 52, 28, w: 1.2);
+        _rr(c, 28, 50, 36, 60, 1, farbeX: _dunkel);
+        break;
+      case BildArt.waermetauscher:
+        _rr(c, 14, 6, 50, 58, 2);
+        for (var i = 0; i < 6; i++) {
+          _linie(c, 14, 14.0 + i * 8, 50, 14.0 + i * 8, w: 1.2);
+        }
+        _oval(c, 6, 8, 14, 16, farbeX: _dunkel);
+        _oval(c, 50, 8, 58, 16, farbeX: _dunkel);
+        _oval(c, 6, 48, 14, 56, farbeX: _dunkel);
+        _oval(c, 50, 48, 58, 56, farbeX: _dunkel);
+        break;
+      case BildArt.speicher:
+        _rr(c, 16, 8, 48, 56, 5);
+        _linie(c, 16, 14, 48, 14, w: 1.2);
+        _linie(c, 16, 50, 48, 50, w: 1.2);
+        _rr(c, 8, 18, 16, 24, 1, farbeX: _dunkel);
+        _rr(c, 8, 42, 16, 48, 1, farbeX: _dunkel);
+        _rr(c, 48, 18, 56, 24, 1, farbeX: _dunkel);
+        break;
+      case BildArt.waermepumpe:
+        _rr(c, 6, 10, 58, 56, 4);
+        _oval(c, 14, 16, 50, 50, farbeX: Colors.white);
+        for (var i = 0; i < 3; i++) {
+          final a = i * 2 * math.pi / 3;
+          c.drawLine(
+            const Offset(32, 33),
+            Offset(32 + 15 * math.cos(a), 33 + 15 * math.sin(a)),
+            _rand..strokeWidth = 3.2,
+          );
+        }
+        break;
+      case BildArt.klimageraet:
+        _rr(c, 4, 14, 60, 40, 5);
+        _linie(c, 10, 34, 54, 34, w: 1.6);
+        _linie(c, 14, 46, 14, 56, w: 1.4);
+        _linie(c, 32, 46, 32, 58, w: 1.4);
+        _linie(c, 50, 46, 50, 56, w: 1.4);
+        break;
+      case BildArt.lueftungsgeraet:
+        _rr(c, 6, 20, 58, 56, 3);
+        _oval(c, 12, 6, 28, 22, farbeX: _dunkel);
+        _oval(c, 36, 6, 52, 22, farbeX: _dunkel);
+        _rr(c, 14, 30, 50, 46, 2, farbeX: Colors.white);
+        break;
+      case BildArt.isolierung:
+        {
+          final aussen = Path()
+            ..moveTo(4, 32)
+            ..lineTo(60, 32);
+          c.drawPath(aussen, Paint()
+            ..color = farbe
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 30);
+          c.drawPath(aussen, Paint()
+            ..color = kontur
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4);
+          _linie(c, 4, 17, 60, 17, w: 1.4);
+          _linie(c, 4, 47, 60, 47, w: 1.4);
+          c.drawPath(aussen, Paint()
+            ..color = const Color(0xFFB87333)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 9);
+        }
+        break;
+      case BildArt.schelle:
+        {
+          final ring = Path()..addOval(const Rect.fromLTRB(14, 14, 50, 50));
+          c.drawPath(ring, Paint()
+            ..color = farbe
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 5);
+          c.drawPath(ring, _rand);
+          _rr(c, 28, 4, 36, 16, 2, farbeX: _dunkel);
+          _linie(c, 32, 0, 32, 6, w: 2.4);
+        }
+        break;
+      case BildArt.schraube:
+        _rr(c, 8, 24, 20, 40, 3);
+        _rr(c, 20, 28, 56, 36, 1);
+        for (var x = 24.0; x < 56; x += 4) {
+          _linie(c, x, 28, x + 2, 36, w: 1.1);
+        }
+        break;
+      case BildArt.werkzeug:
+        {
+          c.save();
+          c.translate(32, 32);
+          c.rotate(-math.pi / 4);
+          _rr(c, -5, -4, 5, 28, 3);
+          _oval(c, -11, -22, 11, -2);
+          _rr(c, -4, -24, 4, -10, 1, farbeX: Colors.white);
+          c.restore();
+        }
+        break;
+      case BildArt.filter:
+        _rr(c, 22, 6, 42, 20, 3, farbeX: _dunkel);
+        _rr(c, 16, 20, 48, 56, 6);
+        _linie(c, 4, 12, 22, 12, w: 5);
+        _linie(c, 42, 12, 60, 12, w: 5);
+        _linie(c, 24, 32, 40, 32, w: 1.2);
+        break;
+      case BildArt.manometer:
+        _oval(c, 8, 8, 56, 56);
+        _oval(c, 13, 13, 51, 51, farbeX: Colors.white);
+        _linie(c, 32, 34, 42, 22, w: 2.4);
+        for (var i = 0; i < 7; i++) {
+          final a = math.pi * (0.75 + i * 0.25 * 1.0);
+          _linie(
+            c,
+            32 + 16 * math.cos(a), 34 + 16 * math.sin(a),
+            32 + 19 * math.cos(a), 34 + 19 * math.sin(a),
+            w: 1.2,
+          );
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   void _bogen(Canvas canvas, void Function(Path) rohr) {

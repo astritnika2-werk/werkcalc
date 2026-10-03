@@ -281,11 +281,23 @@ void main() {
       expect(namen.length, k.length);
     });
 
+    test('Varianten, die es nicht gibt, fehlen', () {
+      for (final n in const [
+        'Kupferbogen 45° A/A Ø22',
+        'Pressfitting Bogen 90° A/A Ø22 (Kupfer)',
+        'Gewindefitting Winkel 45° AG/AG 1" (Edelstahl)',
+        'PP-R Wandwinkel Ø110 × 3" Innengewinde',
+        'HT-Bogen 15° DN 32',
+        'Gewindefitting Muffe IG/IG 4" (Messing)',
+      ]) {
+        expect(namen, isNot(contains(n)), reason: n);
+      }
+    });
+
     test('Kupfer Ø22: alle gewünschten Varianten vorhanden', () {
       for (final n in const [
-        'Kupferbogen 45° I/I Ø22', 'Kupferbogen 45° I/A Ø22', 'Kupferbogen 45° A/A Ø22',
+        'Kupferbogen 45° I/I Ø22', 'Kupferbogen 45° I/A Ø22',
         'Kupferbogen 90° I/I Ø22', 'Kupferbogen 90° I/A Ø22', 'Kupferbogen 90° A/A Ø22',
-        'Kupferbogen 90° I/I kurze Ausführung Ø22', 'Kupferbogen 90° I/I lange Ausführung Ø22',
         'Kupferbogen 90° mit Innengewinde Ø22 × ¾"', 'Kupferbogen 90° mit Außengewinde Ø22 × ¾"',
         'T-Stück Kupfer Ø22', 'Reduzierung Kupfer 28 × 22', 'Muffe Kupfer Ø22',
         'Übergang Kupfer Ø22 × ¾" Innengewinde', 'Übergang Kupfer Ø22 × ¾" Außengewinde',
@@ -298,9 +310,9 @@ void main() {
     test('gleiche Logik für Edelstahl, Stahl, Mehrschicht, Kunststoff', () {
       for (final n in const [
         'Pressfitting Bogen 45° I/I Ø22 (Edelstahl)', 'Pressfitting Bogen 90° I/A Ø22 (C-Stahl)',
-        'Pressfitting Bogen 90° A/A Ø26 (Mehrschicht)', 'Pressfitting Reduzierung 28 × 22 (Edelstahl)',
+        'Pressfitting Bogen 90° I/A Ø26 (Mehrschicht)', 'Pressfitting Reduzierung 28 × 22 (Edelstahl)',
         'Pressfitting Übergang Ø22 × ¾" Außengewinde (Kupfer)',
-        'Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)', 'Gewindefitting Winkel 45° AG/AG 1" (Edelstahl)',
+        'Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)', 'Gewindefitting Winkel 45° IG/AG 1" (Edelstahl)',
         'Schweißbogen 90° lange Ausführung DN 50 (Stahl)', 'PP-R Winkel 90° Ø25',
         'PVC-U Winkel 45° Ø50', 'HT-Abzweig 45° DN 100 / 100', 'KG-Abzweig 87° DN 150 / 100',
       ]) {
@@ -310,7 +322,7 @@ void main() {
 
     test('„bogen 22“: Kupferbögen zuerst, alle Varianten einzeln', () {
       final r = sucheKatalog('bogen 22', k, limit: 60);
-      final top = r.artikel.take(10).map((a) => a.name).toList();
+      final top = r.artikel.take(8).map((a) => a.name).toList();
       expect(top.every((n) => n.startsWith('Kupferbogen')), isTrue, reason: '$top');
       expect(r.artikel.map((a) => a.name), contains('Kupferbogen 90° I/I Ø22'));
       expect(r.artikel.map((a) => a.name), contains('Kupferbogen 45° I/I Ø22'));
@@ -343,10 +355,90 @@ void main() {
       final g = bildInfo(f('Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)'));
       expect(g.ende1, EndeArt.innengewinde);
       expect(g.ende2, EndeArt.aussengewinde);
-      expect(bildInfo(f('Kupferbogen 90° I/I lange Ausführung Ø22')).radius, 2);
       expect(bildInfo(f('T-Stück Kupfer Ø22')).art, BildArt.tstueck);
       expect(bildInfo(f('Muffe Kupfer Ø22')).art, BildArt.muffe);
       expect(bildInfo(f('Reduzierung Kupfer 28 × 22')).art, BildArt.reduzierung);
+    });
+  });
+
+  group('Foto oder Skizze, Handelsdaten', () {
+    final k = baueKatalog();
+
+    test('Skizze für alle genannten Produktgruppen', () {
+      const erwartet = <String, BildArt>{
+        'WC wandhängend Tiefspüler': BildArt.wc,
+        'Waschtisch 60 cm': BildArt.waschtisch,
+        'Waschtischarmatur Einhebelmischer': BildArt.armatur,
+        'Umwälzpumpe Hocheffizienz 25-40': BildArt.pumpe,
+        'Warmwasserspeicher 100 l': BildArt.speicher,
+        'Absperrventil ½"': BildArt.ventil,
+        'HT-Rohr DN 50': BildArt.rohr,
+        'HT-Bogen 87° DN 100': BildArt.bogen,
+      };
+      erwartet.forEach((name, art) {
+        final a = k.firstWhere((x) => x.name == name, orElse: () => throw 'fehlt: $name');
+        expect(bildInfo(a).art, art, reason: name);
+      });
+    });
+
+    test('Suchbegriffe der Gruppen liefern Skizzen statt Platzhalter', () {
+      const gruppen = <String, BildArt>{
+        'wc-sitz': BildArt.wcSitz,
+        'spülkasten': BildArt.spuelkasten,
+        'vorwandelement': BildArt.vorwand,
+        'siphon': BildArt.siphon,
+        'heizkörper': BildArt.heizkoerper,
+        'thermostat': BildArt.thermostat,
+        'ausdehnungsgefäß': BildArt.ausdehnung,
+        'wärmetauscher': BildArt.waermetauscher,
+        'wärmepumpe': BildArt.waermepumpe,
+        'klimagerät': BildArt.klimageraet,
+        'lüftungsgerät': BildArt.lueftungsgeraet,
+        'rohrschelle': BildArt.schelle,
+        'badewanne': BildArt.wanne,
+      };
+      gruppen.forEach((q, art) {
+        final r = sucheKatalog(q, k, limit: 200).artikel;
+        expect(r, isNotEmpty, reason: q);
+        expect(r.any((a) => bildInfo(a).art == art), isTrue, reason: q);
+      });
+    });
+
+    test('Ohne Foto: Skizze; Foto-Schlüssel und Handelsdaten vorhanden', () {
+      final a = k.first;
+      expect(a.foto, isEmpty);
+      expect(a.hersteller, isEmpty);
+      expect(a.preis, isNull);
+      expect(fotoSlug('Kupferbogen 90° I/I Ø22'), 'kupferbogen_90_i_i_o22');
+      final b = KatalogArtikel(name: 'Test X', einheit: 'Stk.', ean: '4012345678901', artikelnummer: 'AB-12');
+      expect(b.fotoSchluessel, ['4012345678901', 'ab_12', 'test_x']);
+    });
+
+    test('JSON ergänzt Hersteller, Artikelnummer, EAN, Foto, Preis, Händler, Lager', () {
+      const roh = '''[
+        {"name": "Kupferbogen 90° I/I Ø22", "hersteller": "Musterwerk", "artikelnummer": "KB-2290",
+         "ean": "4012345678901", "foto": "assets/produkte/kb.jpg", "preis": 3.4,
+         "grosshaendler": "Beispiel GmbH", "lagerbestand": 120, "details": {"Norm": "EN 1254-1"}},
+        {"name": "Neuer Testartikel Ø99", "einheit": "m", "material": "Kupfer"}
+      ]''';
+      final basis = katalogAnreichern(k, roh);
+      final a = basis.firstWhere((x) => x.name == 'Kupferbogen 90° I/I Ø22');
+      expect(a.hersteller, 'Musterwerk');
+      expect(a.artikelnummer, 'KB-2290');
+      expect(a.ean, '4012345678901');
+      expect(a.foto, 'assets/produkte/kb.jpg');
+      expect(a.preis, 3.4);
+      expect(a.grosshaendler, 'Beispiel GmbH');
+      expect(a.lagerbestand, 120);
+      expect(a.details['Norm'], 'EN 1254-1');
+      expect(a.massAnzeige, '22 mm'); // Katalogdaten bleiben erhalten
+      expect(basis.length, k.length);
+      final neu = katalogAusJson(roh, vorhandeneNamen: {for (final x in k) x.name});
+      expect(neu.map((x) => x.name), ['Neuer Testartikel Ø99']);
+      // Suche findet auch über Hersteller, Artikelnummer und EAN.
+      expect(sucheKatalog('musterwerk', basis).artikel.first.name, 'Kupferbogen 90° I/I Ø22');
+      expect(sucheKatalog('KB-2290', basis).artikel.first.name, 'Kupferbogen 90° I/I Ø22');
+      expect(sucheKatalog('4012345678901', basis).artikel.first.name, 'Kupferbogen 90° I/I Ø22');
     });
   });
 }

@@ -123,6 +123,14 @@ class KatalogArtikel {
     this.stichworte = '',
     this.material = '',
     this.dimension = '',
+    this.hersteller = '',
+    this.artikelnummer = '',
+    this.ean = '',
+    this.foto = '',
+    this.preis,
+    this.grosshaendler = '',
+    this.lagerbestand,
+    this.details = const {},
   }) : _familie = familie;
 
   final String name;
@@ -135,6 +143,22 @@ class KatalogArtikel {
   /// abgeleitet, siehe [werkstoffAnzeige] und [massAnzeige]).
   final String material;
   final String dimension;
+
+  // Optionale Handelsdaten. Alle leer, solange sie nicht gepflegt sind; sie
+  // werden später über assets/katalog/zusatz.json ergänzt (kein App-Umbau).
+  final String hersteller;
+  final String artikelnummer;
+  final String ean;
+
+  /// Pfad zu einem echten Produktfoto (Asset „assets/produkte/…“ oder
+  /// Dateipfad). Leer = die App zeigt die Skizze.
+  final String foto;
+  final double? preis;
+  final String grosshaendler;
+  final int? lagerbestand;
+
+  /// Weitere Datenblatt-Zeilen (Name → Wert), z. B. „Nennweite“: „DN 25“.
+  final Map<String, String> details;
 
   /// Zusätzliche Suchwörter (nur für die Suche, nicht sichtbar).
   final String stichworte;
@@ -155,7 +179,50 @@ class KatalogArtikel {
         stichworte: (j['stichworte'] ?? '').toString(),
         material: (j['material'] ?? '').toString(),
         dimension: (j['dimension'] ?? '').toString(),
+        hersteller: (j['hersteller'] ?? '').toString(),
+        artikelnummer: (j['artikelnummer'] ?? '').toString(),
+        ean: (j['ean'] ?? '').toString(),
+        foto: (j['foto'] ?? '').toString(),
+        preis: (j['preis'] as num?)?.toDouble(),
+        grosshaendler: (j['grosshaendler'] ?? '').toString(),
+        lagerbestand: (j['lagerbestand'] as num?)?.toInt(),
+        details: j['details'] is Map
+            ? {
+                for (final e in (j['details'] as Map).entries)
+                  e.key.toString(): e.value.toString(),
+              }
+            : const {},
       );
+
+  /// Übernimmt Handelsdaten aus [o] (nur befüllte Felder); Name, Kategorie
+  /// und Suche bleiben unverändert.
+  KatalogArtikel angereichertMit(KatalogArtikel o) => KatalogArtikel(
+        name: name,
+        einheit: o.einheit.isNotEmpty && o.einheit != 'Stk.' ? o.einheit : einheit,
+        kategorie: kategorie,
+        unter: unter,
+        familie: familie,
+        typ: typ,
+        stichworte: o.stichworte.isEmpty ? stichworte : '$stichworte ${o.stichworte}'.trim(),
+        material: o.material.isEmpty ? material : o.material,
+        dimension: o.dimension.isEmpty ? dimension : o.dimension,
+        hersteller: o.hersteller.isEmpty ? hersteller : o.hersteller,
+        artikelnummer: o.artikelnummer.isEmpty ? artikelnummer : o.artikelnummer,
+        ean: o.ean.isEmpty ? ean : o.ean,
+        foto: o.foto.isEmpty ? foto : o.foto,
+        preis: o.preis ?? preis,
+        grosshaendler: o.grosshaendler.isEmpty ? grosshaendler : o.grosshaendler,
+        lagerbestand: o.lagerbestand ?? lagerbestand,
+        details: {...details, ...o.details},
+      );
+
+  /// Dateiname-Schlüssel für automatisch zugeordnete Fotos
+  /// (assets/produkte/<schlüssel>.jpg|png|webp): EAN, Artikelnummer, Name.
+  List<String> get fotoSchluessel => [
+        if (ean.isNotEmpty) ean,
+        if (artikelnummer.isNotEmpty) fotoSlug(artikelnummer),
+        fotoSlug(name),
+      ];
 
   /// Werkstoff für die Anzeige.
   String get werkstoffAnzeige =>
@@ -241,6 +308,34 @@ List<KatalogArtikel> katalogAusJson(
     return out;
   } catch (_) {
     return const [];
+  }
+}
+
+/// Dateiname-tauglicher Schlüssel: Kleinbuchstaben, nur a–z, 0–9, „_“.
+String fotoSlug(String s) => normalisiereSuche(s)
+    .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+    .replaceAll(RegExp(r'^_+|_+$'), '');
+
+/// Ergänzt bestehende Katalogartikel (gleicher Name) um Handelsdaten aus JSON.
+/// Artikel, die es nicht gibt, werden hier nicht angelegt (siehe [katalogAusJson]).
+List<KatalogArtikel> katalogAnreichern(List<KatalogArtikel> basis, String roh) {
+  try {
+    var daten = jsonDecode(roh);
+    if (daten is Map) daten = daten['artikel'];
+    if (daten is! List) return basis;
+    final nachName = <String, KatalogArtikel>{};
+    for (final e in daten) {
+      if (e is! Map) continue;
+      final a = KatalogArtikel.fromJson(Map<String, dynamic>.from(e));
+      if (a.name.trim().isNotEmpty) nachName[a.name] = a;
+    }
+    if (nachName.isEmpty) return basis;
+    return [
+      for (final a in basis)
+        nachName.containsKey(a.name) ? a.angereichertMit(nachName[a.name]!) : a,
+    ];
+  } catch (_) {
+    return basis;
   }
 }
 
@@ -502,7 +597,7 @@ SuchErgebnis sucheKatalog(
     final a = katalog[i];
     final n = _normCache[a] ??= _Norm(
       normalisiereSuche(
-        a.stichworte.isEmpty ? a.name : '${a.name} ${a.stichworte}',
+        '${a.name} ${a.stichworte} ${a.hersteller} ${a.artikelnummer} ${a.ean}'.trim(),
       ),
       normalisiereSuche(a.familie),
     );

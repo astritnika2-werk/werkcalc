@@ -40,3 +40,25 @@ ergänzt werden, ohne die Suche oder die Listen zu ändern.
   z. B. gyp→Rohr, kthesë→Bogen, mufë→Muffe, lavaman→Waschtisch.
 - `stichworte` machen Artikel auch über andere Wörter auffindbar
   (z. B. „wc“ → Spülkasten, Vorwandelement, Drückerplatte).
+
+## Foto oder Skizze, Handelsdaten (ab 0.8)
+
+Jede Katalogkarte zeigt ein **echtes Foto**, wenn eines vorhanden ist, sonst eine
+**technische Skizze** (Bauform, Winkel, Enden I/A, Gewinde …). Layout und Funktion der
+Karte sind in beiden Fällen gleich; Tippen auf die Karte öffnet die große Ansicht
+mit allen Angaben.
+
+Fotos nur mit Nutzungsrecht verwenden. Zuordnung:
+
+1. Feld `foto` im JSON-Eintrag (`assets/produkte/…` oder Dateipfad), oder
+2. Datei in `assets/produkte/` mit dem Namen `<EAN>.jpg`, `<artikelnummer>.jpg`
+   oder `<artikelname-als-schlüssel>.jpg` (siehe `assets/produkte/LIESMICH.txt`).
+
+Optionale Felder pro Artikel in `assets/katalog/zusatz.json` (alle leer erlaubt):
+`hersteller`, `artikelnummer`, `ean`, `foto`, `preis`, `grosshaendler`,
+`lagerbestand`, `einheit`, `material`, `dimension`, `details` (Name → Wert).
+Ein Eintrag mit dem **Namen eines bestehenden Artikels** ergänzt diesen um die
+Handelsdaten; ein neuer Name legt einen neuen Artikel an. Hersteller,
+Artikelnummer und EAN sind auch durchsuchbar.
+
+Regel für neue Artikel: nur Varianten aufnehmen, die es im Handel wirklich gibt.

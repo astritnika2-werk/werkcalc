@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show AssetManifest, rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'katalog.dart';
@@ -44,6 +44,23 @@ class MaterialListenStore extends ChangeNotifier {
     return '${DateTime.now().microsecondsSinceEpoch}_$_zaehler';
   }
 
+  Set<String> _fotos = {};
+
+  /// Pfad zum echten Foto des Artikels, falls vorhanden; sonst null (dann
+  /// zeigt die Karte die Skizze). Reihenfolge: Feld „foto“, dann Datei
+  /// assets/produkte/<EAN | Artikelnummer | Name>.jpg/.png/.webp.
+  String? fotoFuer(KatalogArtikel a) {
+    if (a.foto.isNotEmpty) return a.foto;
+    if (_fotos.isEmpty) return null;
+    for (final k in a.fotoSchluessel) {
+      for (final ext in const ['jpg', 'jpeg', 'png', 'webp']) {
+        final pfad = 'assets/produkte/$k.$ext';
+        if (_fotos.contains(pfad)) return pfad;
+      }
+    }
+    return null;
+  }
+
   Future<void> laden() async {
     if (_geladen) return;
     _geladen = true;
@@ -55,7 +72,16 @@ class MaterialListenStore extends ChangeNotifier {
           roh,
           vorhandeneNamen: {for (final a in _basis) a.name},
         );
+        _basis = katalogAnreichern(_basis, roh);
         if (extra.isNotEmpty) _basis = [..._basis, ...extra];
+      } catch (_) {}
+      // Echte Produktfotos: alle Dateien in assets/produkte/ merken.
+      try {
+        final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+        _fotos = {
+          for (final pfad in manifest.listAssets())
+            if (pfad.startsWith('assets/produkte/')) pfad,
+        };
       } catch (_) {}
       final p = await SharedPreferences.getInstance();
       _listen = _leseListe(p.getString(_kListen), (m) => Baustelle.fromJson(m));
