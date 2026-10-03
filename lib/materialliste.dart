@@ -356,14 +356,13 @@ SuchErgebnis sucheKatalog(
   final treffer = <_Bewertet>[];
   for (var i = 0; i < katalog.length; i++) {
     final a = katalog[i];
-    final p = _bewerte(
+    final n = _normCache[a] ??= _Norm(
       normalisiereSuche(
         a.stichworte.isEmpty ? a.name : '${a.name} ${a.stichworte}',
       ),
       normalisiereSuche(a.familie),
-      woerter,
-      synonyme,
     );
+    final p = _bewerte(n.text, n.familie, woerter, synonyme);
     if (p > 0) treffer.add(_Bewertet(a, p, i));
   }
   treffer.sort((x, y) {
@@ -415,6 +414,16 @@ SuchErgebnis sucheKatalog(
     [for (final t in treffer.take(limit)) t.artikel],
   );
 }
+
+/// Vorberechnete, normalisierte Suchtexte (macht jeden Tastendruck schnell).
+class _Norm {
+  _Norm(this.text, this.familie);
+
+  final String text;
+  final String familie;
+}
+
+final Expando<_Norm> _normCache = Expando<_Norm>();
 
 class _Bewertet {
   _Bewertet(this.artikel, this.punkte, this.index);
