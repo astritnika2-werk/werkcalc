@@ -1,11 +1,23 @@
 Echte Produktfotos (nur mit Nutzungsrecht!)
 ============================================
-Hier abgelegte Bilder (jpg, png, webp) werden automatisch dem passenden
-Katalogartikel zugeordnet. Der Dateiname ist:
+Bilder (jpg, png, webp) hier ablegen. Der Dateiname ist:
 
   1. die EAN                      z. B.  4012345678901.jpg
   2. die Artikelnummer            z. B.  kv_123456.jpg
   3. der Artikelname als Schlüssel z. B.  kupferbogen_90_i_i_o22.jpg
 
-Gibt es kein Foto, zeigt die App die technische Skizze. Alternativ kann ein
-Artikel in assets/katalog/zusatz.json das Feld "foto" mit dem Pfad tragen.
+WICHTIG: Ein Foto wird nur angezeigt, wenn sein Nutzungsrecht in fotos.json
+steht (Schlüssel = Dateiname ohne Endung):
+
+  {
+    "4012345678901": {
+      "lizenz": "z. B. eigene Aufnahme / CC0 / schriftliche Freigabe vom 01.01.2027",
+      "quelle": "z. B. Hersteller-Pressebereich, Link oder 'eigenes Foto'",
+      "urheber": "z. B. Name des Fotografen oder Herstellers"
+    }
+  }
+
+Ohne Eintrag (oder ohne Lizenz) zeigt die App weiter die technische Skizze.
+Keine Fotos von OBI, Hornbach, Bauhaus oder anderen Shops kopieren.
+Alternativ trägt ein Artikel in assets/katalog/zusatz.json die Felder
+"foto", "fotoLizenz", "fotoQuelle", "fotoUrheber".

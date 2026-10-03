@@ -445,4 +445,23 @@ void main() {
       expect(sucheKatalog('4012345678901', basis).artikel.first.name, 'Kupferbogen 90° I/I Ø22');
     });
   });
+
+  group('Foto-Rechte und Kennung', () {
+    test('Katalogdaten ohne Foto-Lizenz zeigen kein Foto', () {
+      final a = KatalogArtikel(name: 'X', einheit: 'Stk.', foto: 'assets/produkte/x.jpg');
+      expect(a.fotoLizenz, isEmpty);
+    });
+
+    test('Suche über EAN und Artikelnummer', () {
+      final liste = [
+        KatalogArtikel(name: 'A', einheit: 'Stk.', ean: '4012345678901', artikelnummer: 'KV-1234'),
+        KatalogArtikel(name: 'B', einheit: 'Stk.', ean: '4012345678918'),
+      ];
+      expect(findeNachKennung('4012345678901', liste)?.name, 'A');
+      expect(findeNachKennung('kv 1234', liste)?.name, 'A');
+      expect(findeNachKennung('4012345678918', liste)?.name, 'B');
+      expect(findeNachKennung('123', liste), isNull);
+      expect(findeNachKennung('', liste), isNull);
+    });
+  });
 }

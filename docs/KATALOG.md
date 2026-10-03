@@ -48,7 +48,7 @@ Jede Katalogkarte zeigt ein **echtes Foto**, wenn eines vorhanden ist, sonst ein
 Karte sind in beiden Fällen gleich; Tippen auf die Karte öffnet die große Ansicht
 mit allen Angaben.
 
-Fotos nur mit Nutzungsrecht verwenden. Zuordnung:
+Fotos nur mit Nutzungsrecht verwenden – **ohne Lizenz-Eintrag wird kein Foto gezeigt** (siehe `docs/FOTOS.md`). Zuordnung:
 
 1. Feld `foto` im JSON-Eintrag (`assets/produkte/…` oder Dateipfad), oder
 2. Datei in `assets/produkte/` mit dem Namen `<EAN>.jpg`, `<artikelnummer>.jpg`

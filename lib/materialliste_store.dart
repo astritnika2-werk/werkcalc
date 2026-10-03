@@ -7,6 +7,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'katalog.dart';
 import 'materialliste.dart';
 
+/// Ein Foto mit seinem Nutzungsrecht.
+class FotoRecht {
+  const FotoRecht(this.pfad, this.lizenz, this.quelle, this.urheber);
+
+  final String pfad;
+  final String lizenz;
+  final String quelle;
+  final String urheber;
+
+  String get hinweis => [
+        if (urheber.isNotEmpty) '© $urheber',
+        if (lizenz.isNotEmpty) lizenz,
+        if (quelle.isNotEmpty) quelle,
+      ].join(' · ');
+}
+
 /// Lokale Ablage der Materiallisten auf dem Gerät. Nichts wird übertragen.
 class MaterialListenStore extends ChangeNotifier {
   MaterialListenStore._();
@@ -45,17 +61,28 @@ class MaterialListenStore extends ChangeNotifier {
   }
 
   Set<String> _fotos = {};
+  Map<String, FotoRecht> _fotoRechte = {};
 
   /// Pfad zum echten Foto des Artikels, falls vorhanden; sonst null (dann
   /// zeigt die Karte die Skizze). Reihenfolge: Feld „foto“, dann Datei
   /// assets/produkte/<EAN | Artikelnummer | Name>.jpg/.png/.webp.
-  String? fotoFuer(KatalogArtikel a) {
-    if (a.foto.isNotEmpty) return a.foto;
-    if (_fotos.isEmpty) return null;
+  String? fotoFuer(KatalogArtikel a) => fotoRecht(a)?.pfad;
+
+  /// Foto samt Nutzungsrecht – oder null. Ein Foto wird nur gezeigt, wenn die
+  /// Lizenz eingetragen ist (Feld „fotoLizenz“ bzw. Eintrag in
+  /// assets/produkte/fotos.json). Sonst bleibt die Skizze.
+  FotoRecht? fotoRecht(KatalogArtikel a) {
+    if (a.foto.isNotEmpty) {
+      if (a.fotoLizenz.trim().isEmpty) return null;
+      return FotoRecht(a.foto, a.fotoLizenz, a.fotoQuelle, a.fotoUrheber);
+    }
+    if (_fotos.isEmpty || _fotoRechte.isEmpty) return null;
     for (final k in a.fotoSchluessel) {
+      final r = _fotoRechte[k];
+      if (r == null || r.lizenz.trim().isEmpty) continue;
       for (final ext in const ['jpg', 'jpeg', 'png', 'webp']) {
         final pfad = 'assets/produkte/$k.$ext';
-        if (_fotos.contains(pfad)) return pfad;
+        if (_fotos.contains(pfad)) return FotoRecht(pfad, r.lizenz, r.quelle, r.urheber);
       }
     }
     return null;
@@ -81,6 +108,21 @@ class MaterialListenStore extends ChangeNotifier {
         _fotos = {
           for (final pfad in manifest.listAssets())
             if (pfad.startsWith('assets/produkte/')) pfad,
+        };
+      } catch (_) {}
+      // Nutzungsrechte der Fotos: assets/produkte/fotos.json
+      //   { "<dateiname-ohne-endung>": {"lizenz": "...", "quelle": "...", "urheber": "..."} }
+      try {
+        final roh = await rootBundle.loadString('assets/produkte/fotos.json');
+        final m = jsonDecode(roh) as Map<String, dynamic>;
+        _fotoRechte = {
+          for (final e in m.entries)
+            e.key: FotoRecht(
+              '',
+              ((e.value as Map)['lizenz'] ?? '').toString(),
+              ((e.value as Map)['quelle'] ?? '').toString(),
+              ((e.value as Map)['urheber'] ?? '').toString(),
+            ),
         };
       } catch (_) {}
       final p = await SharedPreferences.getInstance();

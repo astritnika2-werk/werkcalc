@@ -917,7 +917,8 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
       if (a.lagerbestand != null) MapEntry('Lagerbestand', '${a.lagerbestand}'),
       ...a.details.entries,
     ].where((e) => e.value.trim().isNotEmpty).toList();
-    final foto = _store.fotoFuer(a);
+    final fotoRecht = _store.fotoRecht(a);
+    final foto = fotoRecht?.pfad;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -943,7 +944,7 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
                   const SizedBox(height: 6),
                   Center(
                     child: Text(
-                      foto == null ? 'Skizze' : 'Foto',
+                      foto == null ? 'Skizze' : 'Foto · ${fotoRecht!.hinweis}',
                       style: TextStyle(fontSize: 12, color: scheme.outline),
                     ),
                   ),

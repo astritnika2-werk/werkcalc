@@ -127,6 +127,9 @@ class KatalogArtikel {
     this.artikelnummer = '',
     this.ean = '',
     this.foto = '',
+    this.fotoLizenz = '',
+    this.fotoQuelle = '',
+    this.fotoUrheber = '',
     this.preis,
     this.grosshaendler = '',
     this.lagerbestand,
@@ -153,6 +156,11 @@ class KatalogArtikel {
   /// Pfad zu einem echten Produktfoto (Asset „assets/produkte/…“ oder
   /// Dateipfad). Leer = die App zeigt die Skizze.
   final String foto;
+
+  /// Nutzungsrecht für [foto]. Ohne Lizenz-Angabe wird ein Foto NIE angezeigt.
+  final String fotoLizenz;
+  final String fotoQuelle;
+  final String fotoUrheber;
   final double? preis;
   final String grosshaendler;
   final int? lagerbestand;
@@ -183,6 +191,9 @@ class KatalogArtikel {
         artikelnummer: (j['artikelnummer'] ?? '').toString(),
         ean: (j['ean'] ?? '').toString(),
         foto: (j['foto'] ?? '').toString(),
+        fotoLizenz: (j['fotoLizenz'] ?? '').toString(),
+        fotoQuelle: (j['fotoQuelle'] ?? '').toString(),
+        fotoUrheber: (j['fotoUrheber'] ?? '').toString(),
         preis: (j['preis'] as num?)?.toDouble(),
         grosshaendler: (j['grosshaendler'] ?? '').toString(),
         lagerbestand: (j['lagerbestand'] as num?)?.toInt(),
@@ -210,6 +221,9 @@ class KatalogArtikel {
         artikelnummer: o.artikelnummer.isEmpty ? artikelnummer : o.artikelnummer,
         ean: o.ean.isEmpty ? ean : o.ean,
         foto: o.foto.isEmpty ? foto : o.foto,
+        fotoLizenz: o.foto.isEmpty ? fotoLizenz : o.fotoLizenz,
+        fotoQuelle: o.foto.isEmpty ? fotoQuelle : o.fotoQuelle,
+        fotoUrheber: o.foto.isEmpty ? fotoUrheber : o.fotoUrheber,
         preis: o.preis ?? preis,
         grosshaendler: o.grosshaendler.isEmpty ? grosshaendler : o.grosshaendler,
         lagerbestand: o.lagerbestand ?? lagerbestand,
@@ -754,4 +768,26 @@ String listeAlsText(Baustelle b, {DateTime? datum}) {
     ..writeln()
     ..write('Erstellt mit WerkCalc');
   return buf.toString();
+}
+
+
+/// Findet einen Katalogartikel über Barcode (EAN) oder Artikelnummer – die
+/// genaueste Art der Identifikation (z. B. für spätere Barcode-Erkennung).
+/// Gibt null zurück, wenn nichts eindeutig passt.
+KatalogArtikel? findeNachKennung(String code, List<KatalogArtikel> katalog) {
+  final ziffern = code.replaceAll(RegExp(r'\D'), '');
+  final nummer = fotoSlug(code);
+  if (ziffern.isEmpty && nummer.isEmpty) return null;
+  KatalogArtikel? treffer;
+  for (final a in katalog) {
+    final passtEan = a.ean.isNotEmpty && ziffern.length >= 8 && a.ean == ziffern;
+    final passtNr = a.artikelnummer.isNotEmpty &&
+        nummer.length >= 4 &&
+        fotoSlug(a.artikelnummer) == nummer;
+    if (passtEan || passtNr) {
+      if (treffer != null) return null; // mehrdeutig
+      treffer = a;
+    }
+  }
+  return treffer;
 }
