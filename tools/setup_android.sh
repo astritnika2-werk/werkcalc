@@ -7,10 +7,12 @@
 #   Anzeigename                  : WerkCalc
 # Für iOS später dieselbe Kennung verwenden:
 #   flutter create --org de.werkcalc --project-name werkcalc --platforms=ios .
+rm -f test/widget_test.dart  # Standard-Test von flutter create passt nicht zu WerkCalc
 set -euo pipefail
 
 if [ ! -d android ]; then
   flutter create --org de.werkcalc --project-name werkcalc --platforms=android .
+rm -f test/widget_test.dart  # Standard-Test von flutter create passt nicht zu WerkCalc
 fi
 
 # Anzeigename unter dem App-Icon
