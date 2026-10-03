@@ -341,7 +341,7 @@ SuchErgebnis sucheKatalog(
   String eingabe,
   List<KatalogArtikel> katalog, {
   int limit = 60,
-  int familienLimit = 10,
+  int familienLimit = 16,
 }) {
   final woerter = normalisiereSuche(eingabe)
       .split(RegExp(r'\s+'))
@@ -380,9 +380,34 @@ SuchErgebnis sucheKatalog(
       if (!zaehler.containsKey(f)) reihenfolge.add(f);
       zaehler[f] = (zaehler[f] ?? 0) + 1;
     }
+    // Familien, die auf das Suchwort enden („…rohr“ bei „gyp“), zuerst; dann
+    // nach Anzahl der Treffer.
+    final kws = <String>{
+      for (final w in woerter)
+        if (w.length >= 3) w,
+      for (final l in synonyme)
+        for (final kw in l)
+          if (kw.length >= 3) kw,
+    };
+    bool endet(String f) {
+      final n = normalisiereSuche(f);
+      return kws.any(n.endsWith);
+    }
+
+    final kandidaten = [
+      for (var i = 0; i < reihenfolge.length; i++)
+        if (zaehler[reihenfolge[i]]! >= 2) i,
+    ];
+    kandidaten.sort((a, b) {
+      final ea = endet(reihenfolge[a]) ? 0 : 1;
+      final eb = endet(reihenfolge[b]) ? 0 : 1;
+      if (ea != eb) return ea.compareTo(eb);
+      final c = zaehler[reihenfolge[b]]!.compareTo(zaehler[reihenfolge[a]]!);
+      return c != 0 ? c : a.compareTo(b);
+    });
     familien = [
-      for (final f in reihenfolge)
-        if (zaehler[f]! >= 2) FamilienTreffer(f, zaehler[f]!),
+      for (final i in kandidaten)
+        FamilienTreffer(reihenfolge[i], zaehler[reihenfolge[i]]!),
     ].take(familienLimit).toList();
   }
   return SuchErgebnis(
