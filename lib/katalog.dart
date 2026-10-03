@@ -2,7 +2,11 @@
 // Namen sind die fachlichen deutschen Bezeichnungen. Größen werden erzeugt,
 // damit der Katalog groß und einheitlich bleibt.
 
+import 'katalog_basis.dart';
+import 'katalog_zusatz.dart';
 import 'materialliste.dart';
+
+export 'katalog_basis.dart';
 
 const String kKatRohr = 'Rohrsysteme';
 const String kKatHeizung = 'Heizung';
@@ -28,30 +32,6 @@ const Map<int, String> _gewinde = {
   63: '2½"',
 };
 
-class _Baukasten {
-  final List<KatalogArtikel> liste = [];
-
-  void add(
-    String kat,
-    String unter,
-    String familie,
-    String name,
-    String einheit, {
-    String typ = '',
-  }) {
-    liste.add(
-      KatalogArtikel(
-        name: name,
-        einheit: einheit,
-        kategorie: kat,
-        unter: unter,
-        familie: familie,
-        typ: typ,
-      ),
-    );
-  }
-}
-
 /// Reduzierungen als Paare (groß/klein) aus einer Größenliste.
 List<List<int>> _paare(List<int> groessen) {
   final p = <List<int>>[];
@@ -63,7 +43,7 @@ List<List<int>> _paare(List<int> groessen) {
 }
 
 void _pressfittings(
-  _Baukasten b,
+  KatalogBaukasten b,
   String werkstoff,
   List<int> groessen,
 ) {
@@ -87,7 +67,7 @@ void _pressfittings(
 
 /// Erzeugt den vollständigen Katalog.
 List<KatalogArtikel> baueKatalog() {
-  final b = _Baukasten();
+  final b = KatalogBaukasten();
 
   // ───────────── Rohrsysteme ─────────────
   for (final d in _kupfer) {
@@ -608,5 +588,17 @@ List<KatalogArtikel> baueKatalog() {
     b.add(kKatElektro, 'Installationsmaterial', t[0].split(' ').first, t[0], t[1], typ: 'Zubehör');
   }
 
-  return b.liste;
+  ergaenzeKatalog(b);
+
+  // Feste Reihenfolge der 17 Hauptkategorien; innerhalb bleibt die Reihenfolge.
+  final mitIndex = [
+    for (var i = 0; i < b.liste.length; i++) MapEntry(i, b.liste[i]),
+  ];
+  mitIndex.sort((x, y) {
+    final kx = kKategorieReihenfolge.indexOf(x.value.kategorie);
+    final ky = kKategorieReihenfolge.indexOf(y.value.kategorie);
+    final c = (kx < 0 ? 99 : kx).compareTo(ky < 0 ? 99 : ky);
+    return c != 0 ? c : x.key.compareTo(y.key);
+  });
+  return [for (final e in mitIndex) e.value];
 }

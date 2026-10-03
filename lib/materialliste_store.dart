@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'katalog.dart';
@@ -23,7 +24,7 @@ class MaterialListenStore extends ChangeNotifier {
   int _zaehler = 0;
 
   /// Eingebauter Katalog (einmal erzeugt).
-  final List<KatalogArtikel> _basis = baueKatalog();
+  List<KatalogArtikel> _basis = baueKatalog();
 
   List<Baustelle> get listen => List.unmodifiable(_listen);
   List<KatalogArtikel> get zuletzt => List.unmodifiable(_zuletzt);
@@ -47,6 +48,15 @@ class MaterialListenStore extends ChangeNotifier {
     if (_geladen) return;
     _geladen = true;
     try {
+      // Katalog-Erweiterung (JSON im App-Paket), ohne Code-Änderung nutzbar.
+      try {
+        final roh = await rootBundle.loadString('assets/katalog/zusatz.json');
+        final extra = katalogAusJson(
+          roh,
+          vorhandeneNamen: {for (final a in _basis) a.name},
+        );
+        if (extra.isNotEmpty) _basis = [..._basis, ...extra];
+      } catch (_) {}
       final p = await SharedPreferences.getInstance();
       _listen = _leseListe(p.getString(_kListen), (m) => Baustelle.fromJson(m));
       _eigene = _leseListe(p.getString(_kEigene), (m) {

@@ -1,7 +1,7 @@
 name: werkcalc
 description: WerkCalc, der private Handwerker Rechner (Heizung, Sanitär, Klima, Elektro, Bau). Offline, ohne Login, mit PDF-Angebot.
 publish_to: "none"
-version: 0.5.0+5
+version: 0.6.0+6
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -27,6 +27,7 @@ flutter:
     - assets/fonts/DejaVuSans-Bold.ttf
     - assets/brand/logo_mark_white.png
     - assets/brand/logo_mark_color.png
+    - assets/katalog/zusatz.json
 
 # App-Icon: nach "flutter create" einmal ausführen:  dart run flutter_launcher_icons
 # Die Bilder erzeugt tools/make_brand.py.

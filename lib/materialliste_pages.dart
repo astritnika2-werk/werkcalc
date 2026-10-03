@@ -717,25 +717,39 @@ class _ArtikelZeile extends StatelessWidget {
 
 IconData _kategorieIcon(String kat) {
   switch (kat) {
-    case 'Rohrsysteme':
-      return Icons.plumbing;
-    case 'Heizung':
-      return Icons.local_fire_department;
     case 'Sanitär / Wasser':
       return Icons.water_drop;
-    case 'Kanalisation / Entwässerung':
-      return Icons.water;
-    case 'Klima / Lüftung':
+    case 'Heizung':
+      return Icons.local_fire_department;
+    case 'Wärmeerzeuger':
+      return Icons.whatshot;
+    case 'Klima':
       return Icons.ac_unit;
-    case 'Isolierungen':
-      return Icons.layers;
-    case 'Befestigung, Schrauben, Dübel':
+    case 'Lüftung':
+      return Icons.air;
+    case 'Abwasser / Kanalisation':
+      return Icons.water;
+    case 'Rohre':
+      return Icons.plumbing;
+    case 'Fittings':
+      return Icons.settings_input_component;
+    case 'Wassertechnik':
+      return Icons.opacity;
+    case 'Installation / Montage':
       return Icons.hardware;
-    case 'Dichtungen':
-      return Icons.radio_button_unchecked;
-    case 'Werkzeug / Verbrauchsmaterial':
+    case 'Isolierung':
+      return Icons.layers;
+    case 'Werkzeug':
       return Icons.build;
-    case 'Elektro':
+    case 'Verbrauchsmaterial':
+      return Icons.inventory_2;
+    case 'Bad / Sanitär-Ausstattung':
+      return Icons.bathtub;
+    case 'Regenerative Energien':
+      return Icons.wb_sunny;
+    case 'Messen / Prüfen':
+      return Icons.speed;
+    case 'Elektro / Anschluss für SHK':
       return Icons.electrical_services;
     default:
       return Icons.edit;

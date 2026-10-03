@@ -10,11 +10,40 @@ void main() {
 
   group('Katalog', () {
     test('ist groß und hat Kategorien', () {
-      expect(katalog.length, greaterThan(800));
+      expect(katalog.length, greaterThan(2000));
       final baum = kategorienBaum(katalog);
-      expect(baum.keys, containsAll(['Rohrsysteme', 'Heizung', 'Sanitär / Wasser']));
-      expect(baum['Rohrsysteme'], contains('Kupferrohre'));
-      expect(baum['Rohrsysteme'], contains('Pressfittings'));
+      expect(baum.keys.toList(), kKategorieReihenfolge);
+      expect(baum['Rohre'], contains('Kupferrohre'));
+      expect(baum['Fittings'], contains('Pressfittings'));
+      expect(baum['Fittings'], contains('Flansche'));
+      expect(baum['Wärmeerzeuger'], containsAll(['Gasheizung', 'Wärmepumpe']));
+      expect(baum['Lüftung'], contains('Flachkanäle'));
+    });
+
+    test('jede Hauptkategorie hat genug Artikel', () {
+      for (final kat in kKategorieReihenfolge) {
+        final n = katalog.where((a) => a.kategorie == kat).length;
+        expect(n, greaterThan(40), reason: kat);
+      }
+    });
+
+    test('Größen: mm, Zoll und DN kommen vor', () {
+      for (final w in ['Ø15', 'Ø18', 'Ø22', 'Ø28', 'Ø35', 'Ø42', 'Ø54', '½"', '¾"', '1¼"', '1½"', '2"', 'DN 40', 'DN 50', 'DN 75', 'DN 100', 'DN 125', 'DN 150']) {
+        expect(katalog.any((a) => a.name.contains(w)), isTrue, reason: w);
+      }
+    });
+
+    test('JSON-Erweiterung wird gelesen, Doppelte und Fehler übersprungen', () {
+      final extra = katalogAusJson(
+        '[{"name":"Testartikel A","einheit":"m","kategorie":"Rohre","unter":"Test"},'
+        '{"name":"Kupferrohr Ø22 mm"},{"name":""},5,{"name":"Testartikel A"}]',
+        vorhandeneNamen: {'Kupferrohr Ø22 mm'},
+      );
+      expect(extra.length, 1);
+      expect(extra.single.einheit, 'm');
+      expect(extra.single.unter, 'Test');
+      expect(katalogAusJson('kaputt'), isEmpty);
+      expect(katalogAusJson('{"artikel":[{"name":"X"}]}').length, 1);
     });
 
     test('Artikelnamen sind eindeutig', () {
@@ -42,6 +71,42 @@ void main() {
       ]) {
         expect(fam, contains(erwartet));
       }
+    });
+
+    test('„gyp baker“ findet Kupferrohre', () {
+      final r = sucheKatalog('gyp baker', katalog, limit: 100).artikel;
+      final n = r.map((a) => a.name).toList();
+      expect(n, contains('Kupferrohr Ø22 mm'));
+      expect(n.every((x) => x.toLowerCase().contains('rohr') && x.toLowerCase().contains('kupfer')), isTrue);
+    });
+
+    test('„kthesë baker 22“ findet Kupferbögen', () {
+      expect(namen('kthesë baker 22', n: 20), contains('Kupferbogen 90° I/I Ø22'));
+    });
+
+    test('„wc“ findet WC, Spülkasten, Vorwandelement, Drückerplatte', () {
+      final n = sucheKatalog('wc', katalog, limit: 400).artikel.map((a) => a.name).toList();
+      expect(n.any((x) => x.startsWith('WC ')), isTrue);
+      expect(n.any((x) => x.startsWith('WC-Sitz')), isTrue);
+      expect(n.any((x) => x.startsWith('Spülkasten')), isTrue);
+      expect(n.any((x) => x.startsWith('Vorwandelement')), isTrue);
+      expect(n.any((x) => x.startsWith('Drückerplatte')), isTrue);
+      expect(n.any((x) => x.startsWith('WC-Anschluss')), isTrue);
+    });
+
+    test('„pomp 25“ findet Umwälz-, Zirkulationspumpen und Pumpengruppen', () {
+      final n = sucheKatalog('pomp 25', katalog, limit: 200).artikel.map((a) => a.name).toList();
+      expect(n, contains('Umwälzpumpe Hocheffizienz 25-40'));
+      expect(n, contains('Zirkulationspumpe DN 25'));
+      expect(n, contains('Pumpengruppe DN 25 gemischt'));
+    });
+
+    test('Albanisch: lavaman, bojler, rubinet, pompë qarkullimi, kanalizim', () {
+      expect(namen('lavaman', n: 30).any((x) => x.startsWith('Waschtisch')), isTrue);
+      expect(namen('bojler', n: 30).any((x) => x.contains('speicher') || x.contains('Speicher')), isTrue);
+      expect(namen('rubinet', n: 30).any((x) => x.contains('armatur') || x.contains('Armatur')), isTrue);
+      expect(namen('pompë qarkullimi', n: 30).any((x) => x.contains('Umwälzpumpe')), isTrue);
+      expect(namen('kanalizim', n: 30), isNotEmpty);
     });
 
     test('„kup 22“ findet zuerst Kupferrohr Ø22 mm', () {

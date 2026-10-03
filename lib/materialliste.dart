@@ -1,6 +1,8 @@
 // Materiallisten: reine Dart-Logik (ohne Flutter), damit sie sich testen lässt.
 // Keine Preise, keine Großhändler: nur Artikel, Mengen und Einheiten.
 
+import 'dart:convert';
+
 import 'logic.dart';
 
 /// Einheiten zur Auswahl beim Hinzufügen.
@@ -118,6 +120,7 @@ class KatalogArtikel {
     this.unter = 'Eigene',
     String? familie,
     this.typ = '',
+    this.stichworte = '',
   }) : _familie = familie;
 
   final String name;
@@ -125,6 +128,9 @@ class KatalogArtikel {
   final String kategorie;
   final String unter;
   final String typ;
+
+  /// Zusätzliche Suchwörter (nur für die Suche, nicht sichtbar).
+  final String stichworte;
   final String? _familie;
 
   /// Produktfamilie ohne Größe, z. B. „Kupferrohr“.
@@ -135,7 +141,37 @@ class KatalogArtikel {
   factory KatalogArtikel.fromJson(Map<String, dynamic> j) => KatalogArtikel(
         name: (j['name'] ?? '').toString(),
         einheit: (j['einheit'] ?? 'Stk.').toString(),
+        kategorie: (j['kategorie'] ?? 'Eigene Artikel').toString(),
+        unter: (j['unter'] ?? 'Eigene').toString(),
+        familie: j['familie']?.toString(),
+        typ: (j['typ'] ?? '').toString(),
+        stichworte: (j['stichworte'] ?? '').toString(),
       );
+}
+
+/// Liest Katalog-Erweiterungen aus JSON (Liste oder {"artikel": [...]}).
+/// Ungültige Einträge werden übersprungen. Doppelte Namen (auch zum
+/// bestehenden Katalog) werden nicht übernommen.
+List<KatalogArtikel> katalogAusJson(
+  String roh, {
+  Set<String> vorhandeneNamen = const {},
+}) {
+  try {
+    var daten = jsonDecode(roh);
+    if (daten is Map) daten = daten['artikel'];
+    if (daten is! List) return const [];
+    final gesehen = {...vorhandeneNamen};
+    final out = <KatalogArtikel>[];
+    for (final e in daten) {
+      if (e is! Map) continue;
+      final a = KatalogArtikel.fromJson(Map<String, dynamic>.from(e));
+      if (a.name.trim().isEmpty || !gesehen.add(a.name)) continue;
+      out.add(a);
+    }
+    return out;
+  } catch (_) {
+    return const [];
+  }
 }
 
 /// Vereinfacht Text für die Suche: Kleinbuchstaben, ohne Umlaute und
@@ -182,7 +218,7 @@ const Map<String, List<String>> kSynonyme = {
   'waschbecken': ['waschtisch', 'waschbecken'], 'tualet': ['wc'],
   'sifon': ['siphon'], 'siphon': ['siphon'], 'dush': ['dusche', 'brause'],
   'tus': ['dusche', 'brause'], 'bojler': ['speicher', 'boiler'],
-  'boiler': ['speicher', 'boiler'], 'rubinet': ['armatur'],
+  'boiler': ['speicher', 'boiler'], 'rubinet': ['armatur', 'wasserhahn'],
   'vida': ['schraube'], 'vidha': ['schraube'], 'shraf': ['schraube'],
   'schr': ['schraube'], 'dubel': ['dubel'], 'diibel': ['dubel'],
   'dubl': ['dubel'], 'teflon': ['fittingband'], 'kanal': ['kg-', 'ht-'],
@@ -194,7 +230,25 @@ const Map<String, List<String>> kSynonyme = {
   'pvc': ['kunststoff', 'pvc', 'pp-r'], 'ppr': ['pp-r'], 'pex': ['pe-x'],
   'verbund': ['mehrschicht'], 'mv': ['mehrschicht'], 'alupex': ['mehrschicht'],
   'lufte': ['luftung'], 'ventilator': ['ventilator', 'luftung'],
-  'tape': ['band'], 'ngjit': ['kleb'], 'silikon': ['silikon'],
+  'tape': ['band', 'stopfen', 'kappe'], 'ngjit': ['kleb'], 'silikon': ['silikon'],
+  // Handwerkersprache (albanisch) → Fachbegriff
+  'baker': ['kupfer'], 'celik': ['stahl'], 'hekur': ['stahl'],
+  'qarkullim': ['umwalz', 'zirkulation'], 'ngroh': ['heiz'],
+  'kaldaj': ['kessel'], 'kazan': ['kessel'],
+  'flans': ['flansch'], 'kryq': ['kreuz'], 'kapak': ['kappe'],
+  'cezme': ['armatur', 'hahn'], 'vaske': ['badewanne'], 'kade': ['badewanne'],
+  'diell': ['solar'], 'solar': ['solar'], 'ajrim': ['luftung'],
+  'ajros': ['luftung'], 'filter': ['filter'], 'filtr': ['filter'],
+  'manometer': ['manometer'], 'termometer': ['thermometer'],
+  'kabell': ['kabel'], 'kabel': ['kabel'], 'sigur': ['sicherung'],
+  'prize': ['steckdose'], 'celes': ['schalter', 'schlussel'],
+  'trapan': ['bohrmaschine', 'bohrer'], 'turjel': ['bohrer', 'bohrmaschine'],
+  'pense': ['zange'], 'kacavid': ['schraubendreher'],
+  'metar': ['massband', 'zollstock'], 'dorez': ['handschuh'],
+  'mbajtes': ['halter', 'konsole'], 'konsol': ['konsole'],
+  'toilet': ['wc'], 'toilette': ['wc'], 'mikser': ['mischer'],
+  'puf': ['puffer'], 'nxehtes': ['warme'], 'abwasser': ['abwasser', 'kg-', 'ht-'],
+  'flansch': ['flansch'], 'wasserhahn': ['armatur', 'hahn'],
 };
 
 final RegExp _zahlToken = RegExp(r'^[0-9][0-9,./]*$');
@@ -303,7 +357,9 @@ SuchErgebnis sucheKatalog(
   for (var i = 0; i < katalog.length; i++) {
     final a = katalog[i];
     final p = _bewerte(
-      normalisiereSuche(a.name),
+      normalisiereSuche(
+        a.stichworte.isEmpty ? a.name : '${a.name} ${a.stichworte}',
+      ),
       normalisiereSuche(a.familie),
       woerter,
       synonyme,
