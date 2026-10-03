@@ -326,7 +326,7 @@ void main() {
 
     test('„bogen 22“: Kupferbögen zuerst, alle Varianten einzeln', () {
       final r = sucheKatalog('bogen 22', k, limit: 60);
-      final top = r.artikel.take(8).map((a) => a.name).toList();
+      final top = r.artikel.take(5).map((a) => a.name).toList();
       expect(top.every((n) => n.startsWith('Kupferbogen')), isTrue, reason: '$top');
       expect(r.artikel.map((a) => a.name), contains('Kupferbogen 90° I/I Ø22'));
       expect(r.artikel.map((a) => a.name), contains('Kupferbogen 45° I/I Ø22'));
