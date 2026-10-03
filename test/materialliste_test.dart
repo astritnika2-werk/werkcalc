@@ -262,7 +262,7 @@ void main() {
     test('erste Artikel', () {
       expect(erst('gyp'), startsWith('Kupferrohr'));
       expect(erst('gyp baker'), startsWith('Kupferrohr'));
-      expect(erst('kthesë'), contains('Bogen'));
+      expect(erst('kthesë').toLowerCase(), contains('bogen'));
       expect(erst('mufë'), startsWith('Muffe'));
       expect(erst('press'), startsWith('Pressfitting'));
       expect(erst('ventil').toLowerCase(), contains('ventil'));

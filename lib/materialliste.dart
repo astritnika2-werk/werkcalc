@@ -357,6 +357,39 @@ final Map<String, int> _familienRang = {
 
 int _rang(String familie) => _familienRang[familie] ?? 100000;
 
+/// Für einzelne Suchwörter gilt eine eigene Reihenfolge der Familien
+/// (zuerst das, was Handwerker meinen). Schlüssel = Wortanfang.
+const Map<String, List<String>> kBevorzugt = {
+  'izolim': [
+    'Rohrisolierung', 'Heizungsisolierung', 'Kälteisolierung',
+    'Sanitärisolierung', 'Brandschutzisolierung', 'Pumpenisolierschale',
+  ],
+  'lavaman': [
+    'Waschtisch', 'Waschbecken', 'Doppelwaschtisch', 'Waschtischarmatur',
+    'Waschtisch-Siphon',
+  ],
+  'bojler': [
+    'Warmwasserspeicher', 'Untertischspeicher', 'Pufferspeicher',
+    'Hygienespeicher', 'Kombispeicher',
+  ],
+  'rubinet': [
+    'Waschtischarmatur', 'Küchenarmatur', 'Duscharmatur', 'Thermostatarmatur',
+    'Außenwandarmatur',
+  ],
+};
+
+int _rangFuer(String familie, List<String> woerter) {
+  for (final w in woerter) {
+    for (final e in kBevorzugt.entries) {
+      if (w.startsWith(e.key)) {
+        final i = e.value.indexOf(familie);
+        if (i >= 0) return i - 1000;
+      }
+    }
+  }
+  return _rang(familie);
+}
+
 /// Ergebnis der Schnellsuche: Produktfamilien (zum Eingrenzen) und Artikel.
 class SuchErgebnis {
   const SuchErgebnis(this.familien, this.artikel);
@@ -405,7 +438,7 @@ SuchErgebnis sucheKatalog(
     if (p > 0) treffer.add(_Bewertet(a, p, i));
   }
   treffer.sort((x, y) {
-    final r = _rang(x.artikel.familie).compareTo(_rang(y.artikel.familie));
+    final r = _rangFuer(x.artikel.familie, woerter).compareTo(_rangFuer(y.artikel.familie, woerter));
     if (r != 0) return r;
     final c = y.punkte.compareTo(x.punkte);
     return c != 0 ? c : x.index.compareTo(y.index);
@@ -439,7 +472,7 @@ SuchErgebnis sucheKatalog(
         if (zaehler[reihenfolge[i]]! >= 2) i,
     ];
     kandidaten.sort((a, b) {
-      final ra = _rang(reihenfolge[a]).compareTo(_rang(reihenfolge[b]));
+      final ra = _rangFuer(reihenfolge[a], woerter).compareTo(_rangFuer(reihenfolge[b], woerter));
       if (ra != 0) return ra;
       final ea = endet(reihenfolge[a]) ? 0 : 1;
       final eb = endet(reihenfolge[b]) ? 0 : 1;
