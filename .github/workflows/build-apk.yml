@@ -38,7 +38,7 @@ jobs:
       - name: Tests
         run: |
           flutter test --reporter expanded > test.log 2>&1 || FAIL=1
-          grep -E "\[E\]|Expected|Actual|Which|test/.*dart" test.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+          tr "\r" "\n" < test.log | grep -v "^$" | tail -30 | while IFS= read -r l; do echo "::error::$l"; done
           [ -z "$FAIL" ]
         continue-on-error: true
 
