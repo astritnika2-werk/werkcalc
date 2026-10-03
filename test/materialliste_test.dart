@@ -237,4 +237,38 @@ void main() {
       expect(t, contains('03.10.2026'));
     });
   });
+
+  group('Reihenfolge der Ergebnisse', () {
+    final k = baueKatalog();
+    List<String> fam(String q, int n) =>
+        sucheKatalog(q, k).familien.take(n).map((f) => f.name).toList();
+    String erst(String q) => sucheKatalog(q, k).artikel.first.name;
+
+    test('izolim', () {
+      expect(fam('izolim', 6), ['Rohrisolierung', 'Heizungsisolierung', 'Kälteisolierung', 'Sanitärisolierung', 'Brandschutzisolierung', 'Pumpenisolierschale']);
+    });
+    test('klima', () {
+      expect(fam('klima', 8), ['Klimagerät', 'Split-Klimagerät', 'Außengerät', 'Innengerät', 'Multisplit', 'Kondensatpumpe', 'Kältemittelleitung', 'Verbindungskabel']);
+    });
+    test('lavaman', () {
+      expect(fam('lavaman', 5), ['Waschtisch', 'Waschbecken', 'Doppelwaschtisch', 'Waschtischarmatur', 'Waschtisch-Siphon']);
+    });
+    test('wc', () {
+      expect(fam('wc', 6), ['WC', 'WC-Sitz', 'Spülkasten', 'Vorwandelement', 'Drückerplatte', 'WC-Anschluss']);
+    });
+    test('pompë qarkullimi', () {
+      expect(fam('pompë qarkullimi', 4), ['Umwälzpumpe', 'Zirkulationspumpe', 'Heizkreispumpe', 'Pumpengruppe']);
+    });
+    test('erste Artikel', () {
+      expect(erst('gyp'), startsWith('Kupferrohr'));
+      expect(erst('gyp baker'), startsWith('Kupferrohr'));
+      expect(erst('kthesë'), contains('Bogen'));
+      expect(erst('mufë'), startsWith('Muffe'));
+      expect(erst('press'), startsWith('Pressfitting'));
+      expect(erst('ventil').toLowerCase(), contains('ventil'));
+      expect(erst('pompë').toLowerCase(), contains('pumpe'));
+      expect(erst('bojler').toLowerCase(), anyOf(contains('speicher'), contains('boiler')));
+      expect(erst('kanalizim'), anyOf(startsWith('HT'), startsWith('KG')));
+    });
+  });
 }

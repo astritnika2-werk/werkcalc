@@ -114,6 +114,28 @@ const Map<String, String> _autoStichworte = {
   'Warmwasserspeicher': 'boiler bojler',
   'Heizkörper': 'radiator',
   'Pufferspeicher': 'puffer speicher',
+  'Pumpengruppe': 'umwälzpumpe zirkulation',
+  'Kondensatpumpe': 'klima kondensat',
+};
+
+/// Einheitliche Familiennamen (damit z. B. alle WC-Anschlüsse zusammenstehen).
+const Map<String, String> _familienAlias = {
+  'Rohrisolierung PE': 'Rohrisolierung',
+  'Rohrisolierung Mineralwolle': 'Rohrisolierung',
+  'Isolierung': 'Rohrisolierung',
+  'Isolierung Kälte': 'Kälteisolierung',
+  'Multisplit-Außengerät': 'Multisplit',
+  'Multisplit-Innengerät': 'Multisplit',
+  'Verbindungskabel Klima': 'Verbindungskabel',
+  'WC-Vorwandelement': 'Vorwandelement',
+  'Betätigungsplatte': 'Drückerplatte',
+  'WC-Anschlussgarnitur': 'WC-Anschluss',
+  'WC-Anschlussbogen': 'WC-Anschluss',
+  'WC-Anschlussstutzen': 'WC-Anschluss',
+  'WC-Anschlussmanschette': 'WC-Anschluss',
+  'WC-Befestigungsset': 'WC-Zubehör',
+  'WC-Bürste': 'WC-Zubehör',
+  'WC-Papierhalter': 'WC-Zubehör',
 };
 
 /// Baukasten zum Erzeugen der Katalogeinträge.
@@ -132,21 +154,23 @@ class KatalogBaukasten {
   }) {
     if (!_namen.add(name)) return; // Namen sind eindeutig
     var u = unter;
-    if (familie == 'PP-R Fitting') u = 'Kunststofffittings';
-    final k = _ziel(kat, u, familie);
+    final fam = _familienAlias[familie] ?? familie;
+    if (fam == 'PP-R Fitting') u = 'Kunststofffittings';
+    final k = _ziel(kat, u, fam);
     if (k == kVerbrauch && u == 'Dichtungen') u = 'Dichtmittel & Kleber';
     if (k == kVerbrauch && u == 'Werkzeug & Verbrauch') u = 'Löten, Bohren, Reinigen';
     var sw = stichworte;
     _autoStichworte.forEach((teil, w) {
       if (name.contains(teil) && !sw.contains(w)) sw = '$sw $w'.trim();
     });
+    if (k == kAbwasser) sw = '$sw abwasser kanalisation'.trim();
     liste.add(
       KatalogArtikel(
         name: name,
         einheit: einheit,
         kategorie: k,
         unter: u,
-        familie: familie,
+        familie: fam,
         typ: typ,
         stichworte: sw,
       ),

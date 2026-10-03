@@ -28,8 +28,8 @@ void main() {
     for (final q in proben) {
       final r = sucheKatalog(q, katalog);
       expect(r.artikel, isNotEmpty, reason: q);
-      final fam = r.familien.take(4).map((f) => f.name).join(', ');
-      final art = r.artikel.take(3).map((a) => a.name).join(' | ');
+      final fam = r.familien.take(8).map((f) => f.name).join(', ');
+      final art = r.artikel.take(4).map((a) => a.name).join(' | ');
       bericht.writeln('„$q“ → Familien: [$fam] Artikel: $art');
     }
   });

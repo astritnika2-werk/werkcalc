@@ -231,6 +231,17 @@ void _bad(KatalogBaukasten b) {
     'Verbundabdichtung Dusche',
     'Dichtmanschette Bodenablauf',
   ], 'Stk.', typ: 'Zubehör');
+  b.liste_(k, 'Waschtische & Armaturen', [
+    'Waschbecken 45 cm',
+    'Waschbecken 50 cm',
+    'Waschbecken 60 cm',
+    'Waschbecken Eck',
+  ], 'Stk.', typ: 'Sanitärobjekt', familie: 'Waschbecken', stichworte: 'waschtisch lavaman');
+  b.liste_(k, 'Waschtische & Armaturen', [
+    'Waschtisch-Siphon Flasche chrom',
+    'Waschtisch-Siphon Raumspar',
+    'Waschtisch-Siphon Röhre',
+  ], 'Stk.', typ: 'Siphon', familie: 'Waschtisch-Siphon', stichworte: 'siphon');
   b.liste_(k, 'Ablaufgarnituren & Zubehör', [
     'Ablaufgarnitur Waschtisch Push-Open',
     'Ablaufgarnitur Waschtisch mit Überlauf',
@@ -341,6 +352,8 @@ void _heizung(KatalogBaukasten b) {
     'Pumpenverschraubung 1½"',
     'Pumpenverschraubung 2"',
     'Pumpenisolierschale',
+    'Pumpenisolierschale Heizung',
+    'Pumpenisolierschale Zirkulation',
     'Pumpenstecker',
   ], 'Stk.', typ: 'Zubehör');
   for (final bar in const ['1,5', '2,5', '3', '4', '6']) {
@@ -652,6 +665,12 @@ void _klima(KatalogBaukasten b) {
     'Kälte-Absperrventil ⅝"',
     'Kälte-Absperrventil ¾"',
   ], 'Stk.', typ: 'Zubehör', stichworte: 'kältemittel');
+  b.liste_(k, 'Split-Klimageräte', [
+    'Klimagerät mobil 2,6 kW',
+    'Klimagerät mobil 3,5 kW',
+    'Klimagerät Monoblock Fenster 2,0 kW',
+    'Klimagerät Monoblock Wand 2,5 kW',
+  ], 'Stk.', typ: 'Gerät', familie: 'Klimagerät', stichworte: 'klimaanlage');
   b.liste_(k, 'Kondensatleitungen', [
     'Kondensatpumpe Wandgerät',
     'Kondensatpumpe Kanalgerät',

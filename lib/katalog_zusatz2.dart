@@ -436,7 +436,7 @@ void _isolierung(KatalogBaukasten b) {
     b.add(k, 'Kälteisolierung', 'Kälteisolierung', 'Kälteisolierung Kautschuk Ø$d 13 mm', 'm', typ: 'Isolierung', stichworte: 'klima');
     b.add(k, 'Kälteisolierung', 'Kälteisolierung', 'Kälteisolierung Kautschuk Ø$d 19 mm', 'm', typ: 'Isolierung', stichworte: 'klima');
     b.add(k, 'Kälteisolierung', 'Kälteisolierung', 'Kälteisolierung Kautschuk Ø$d 25 mm', 'm', typ: 'Isolierung', stichworte: 'klima');
-    b.add(k, 'Brandschutzisolierung', 'Brandschutzisolierung', 'Brandschutz-Rohrschale Mineralwolle Ø$d', 'm', typ: 'Isolierung', stichworte: 'brandschutz');
+    b.add(k, 'Brandschutzisolierung', 'Brandschutzisolierung', 'Brandschutz-Rohrschale Mineralwolle Ø$d', 'm', typ: 'Isolierung', stichworte: 'brandschutz isolierung');
   }
   for (final z in kZollListe) {
     b.add(k, 'Rohrisolierung', 'Rohrisolierung PE', 'Rohrisolierung PE $z', 'm', typ: 'Isolierung');

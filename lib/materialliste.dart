@@ -221,8 +221,8 @@ const Map<String, List<String>> kSynonyme = {
   'boiler': ['speicher', 'boiler'], 'rubinet': ['armatur', 'wasserhahn'],
   'vida': ['schraube'], 'vidha': ['schraube'], 'shraf': ['schraube'],
   'schr': ['schraube'], 'dubel': ['dubel'], 'diibel': ['dubel'],
-  'dubl': ['dubel'], 'teflon': ['fittingband'], 'kanal': ['kg-', 'ht-'],
-  'kanaliz': ['kg-', 'ht-'], 'kondens': ['kondensat'], 'klima': ['klima'],
+  'dubl': ['dubel'], 'teflon': ['fittingband'], 'kanal': ['abwasser', 'kg-', 'ht-'],
+  'kanaliz': ['abwasser'], 'kondens': ['kondensat'], 'klima': ['klima'],
   'lemer': ['lotzinn'], 'sheshe': ['schelle'], 'skele': ['schelle'],
   'schelle': ['schelle'], 'press': ['pressfitting'], 'gewinde': ['gewinde'],
   'kupfer': ['kupfer'], 'bakri': ['kupfer'], 'inox': ['edelstahl'],
@@ -318,6 +318,45 @@ int _bewerte(
   return punkte;
 }
 
+/// Reihenfolge wichtiger Produktfamilien in den Ergebnissen (vorne = zuerst).
+/// Nicht genannte Familien kommen danach. Die Reihenfolge ordnet nur,
+/// sie entfernt nichts.
+const List<String> kFamilienReihenfolge = [
+  // Kupfer, Pressfittings, Rohre
+  'Kupferrohr', 'Kupferbogen', 'Muffe Kupfer', 'T-Stück Kupfer',
+  'Reduzierung Kupfer', 'Pressfitting', 'Edelstahlrohr', 'Stahlrohr',
+  'Mehrschichtverbundrohr', 'Kunststoffrohr', 'PE-Rohr', 'PE-X Rohr',
+  'PVC-Rohr', 'PP-Rohr', 'HT-Rohr', 'KG-Rohr', 'KG2000-Rohr',
+  'Gewindefitting', 'PP-R Fitting', 'HT-Bogen', 'KG-Bogen', 'KG2000-Bogen',
+  'HT-Muffe', 'KG-Muffe', 'KG2000-Muffe', 'HT-Abzweig', 'KG-Abzweig',
+  // Pumpen
+  'Umwälzpumpe', 'Zirkulationspumpe', 'Heizkreispumpe', 'Pumpengruppe',
+  // Klima
+  'Klimagerät', 'Split-Klimagerät', 'Außengerät', 'Innengerät', 'Multisplit',
+  'Kondensatpumpe', 'Kältemittelleitung', 'Verbindungskabel',
+  'Tauchpumpe', 'Gartenpumpe', 'Hauswasserwerk', 'Hauswasserautomat',
+  // Ventile
+  'Absperrventil', 'Eckventil', 'Thermostatventil', 'Sicherheitsventil',
+  'Rückschlagventil', 'Schrägsitzventil', 'Freistromventil', 'Zonenventil',
+  'Strangregulierventil', 'Kugelhahn', 'Rückflussverhinderer', 'Druckminderer',
+  // Isolierung
+  'Rohrisolierung', 'Heizungsisolierung', 'Kälteisolierung',
+  'Sanitärisolierung', 'Brandschutzisolierung', 'Pumpenisolierschale',
+  // WC, Waschtisch
+  'WC', 'WC-Sitz', 'Spülkasten', 'Vorwandelement', 'Drückerplatte',
+  'WC-Anschluss', 'Waschtisch', 'Waschbecken', 'Doppelwaschtisch',
+  'Waschtischarmatur', 'Waschtisch-Siphon',
+  // Speicher
+  'Warmwasserspeicher', 'Untertischspeicher', 'Pufferspeicher',
+  'Hygienespeicher', 'Kombispeicher',
+];
+
+final Map<String, int> _familienRang = {
+  for (var i = 0; i < kFamilienReihenfolge.length; i++) kFamilienReihenfolge[i]: i,
+};
+
+int _rang(String familie) => _familienRang[familie] ?? 100000;
+
 /// Ergebnis der Schnellsuche: Produktfamilien (zum Eingrenzen) und Artikel.
 class SuchErgebnis {
   const SuchErgebnis(this.familien, this.artikel);
@@ -366,6 +405,8 @@ SuchErgebnis sucheKatalog(
     if (p > 0) treffer.add(_Bewertet(a, p, i));
   }
   treffer.sort((x, y) {
+    final r = _rang(x.artikel.familie).compareTo(_rang(y.artikel.familie));
+    if (r != 0) return r;
     final c = y.punkte.compareTo(x.punkte);
     return c != 0 ? c : x.index.compareTo(y.index);
   });
@@ -398,6 +439,8 @@ SuchErgebnis sucheKatalog(
         if (zaehler[reihenfolge[i]]! >= 2) i,
     ];
     kandidaten.sort((a, b) {
+      final ra = _rang(reihenfolge[a]).compareTo(_rang(reihenfolge[b]));
+      if (ra != 0) return ra;
       final ea = endet(reihenfolge[a]) ? 0 : 1;
       final eb = endet(reihenfolge[b]) ? 0 : 1;
       if (ea != eb) return ea.compareTo(eb);
