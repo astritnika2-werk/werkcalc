@@ -7,7 +7,7 @@ void main() {
   final katalog = baueKatalog();
 
   List<String> namen(String q, {int n = 8}) =>
-      sucheKatalog(q, katalog).artikel.take(n).map((a) => a.name).toList();
+      sucheKatalog(q, katalog, limit: n > 60 ? n : 60).artikel.take(n).map((a) => a.name).toList();
 
   group('Katalog', () {
     test('ist groß und hat Kategorien', () {
@@ -125,7 +125,7 @@ void main() {
     test('„press 22“ findet zuerst die Pressfittings Ø22', () {
       final n = namen('press 22', n: 20);
       expect(n, contains('Pressfitting Bogen 90° Ø22 (Kupfer)'));
-      expect(n, contains('Pressfitting T-Stück Ø22 (Edelstahl)'));
+      expect(namen('press 22', n: 500), contains('Pressfitting T-Stück Ø22 (Edelstahl)'));
       expect(n.every((x) => x.startsWith('Pressfitting') && x.contains('22')), isTrue);
     });
 

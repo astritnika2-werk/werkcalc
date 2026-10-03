@@ -100,7 +100,7 @@ void _kupferLoet(KatalogBaukasten b) {
         typ: 'Reduzierung', material: mat, dim: '${p[0]} × ${p[1]} mm');
   }
   for (final p in _paare(groessen).where((p) => p[0] <= 35)) {
-    b.add(k, u, 'T-Stück Kupfer', 'T-Stück Kupfer reduziert Ø${p[0]} × ${p[0]} × ${p[1]}', 'Stk.',
+    b.add(k, u, 'T-Stück Kupfer', 'T-Stück Kupfer Ø${p[0]} × ${p[0]} × ${p[1]}', 'Stk.',
         typ: 'T-Stück', material: mat, dim: '${p[0]} × ${p[0]} × ${p[1]} mm');
   }
 }
@@ -157,7 +157,7 @@ void _press(KatalogBaukasten b) {
           typ: 'Reduzierung', material: mat, dim: '${p[0]} × ${p[1]} mm');
     }
     for (final p in _paare(groessen).where((p) => p[0] <= 54)) {
-      b.add(k, u, 'Press-T-Stück', 'Pressfitting T-Stück reduziert Ø${p[0]} × ${p[0]} × ${p[1]} ($mat)', 'Stk.',
+      b.add(k, u, 'Press-T-Stück', 'Pressfitting T-Stück Ø${p[0]} × ${p[0]} × ${p[1]} ($mat)', 'Stk.',
           typ: 'T-Stück', material: mat, dim: '${p[0]} × ${p[0]} × ${p[1]} mm');
     }
   });
@@ -202,7 +202,7 @@ void _gewinde(KatalogBaukasten b) {
           typ: 'Reduzierung', material: mat, dim: '${p[0]} × ${p[1]}');
       b.add(k, u, 'Gewinde-Reduzierung', 'Gewindefitting Reduzierung AG/AG ${p[0]} × ${p[1]} ($mat)', 'Stk.',
           typ: 'Reduzierung', material: mat, dim: '${p[0]} × ${p[1]}');
-      b.add(k, u, 'Gewinde-T-Stück', 'Gewindefitting T-Stück reduziert IG ${p[0]} × ${p[0]} × ${p[1]} ($mat)', 'Stk.',
+      b.add(k, u, 'Gewinde-T-Stück', 'Gewindefitting T-Stück IG ${p[0]} × ${p[0]} × ${p[1]} ($mat)', 'Stk.',
           typ: 'T-Stück', material: mat, dim: '${p[0]} × ${p[1]}');
     }
   }
