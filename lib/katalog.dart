@@ -217,7 +217,7 @@ List<KatalogArtikel> baueKatalog() {
   ]) {
     b.add(kKatHeizung, 'Pumpen', x.split(' ').first, x, 'Stk.', typ: 'Pumpe');
   }
-  for (final l in const [8, 12, 18, 25, 35, 50, 80]) {
+  for (final l in const [8, 12, 18, 25, 33, 50, 80]) {
     b.add(kKatHeizung, 'Ausdehnungsgefäße', 'Ausdehnungsgefäß', 'Ausdehnungsgefäß $l l', 'Stk.', typ: 'Zubehör');
   }
   for (final n in const [2, 3, 4, 5, 6, 8, 10, 12]) {
@@ -357,7 +357,7 @@ List<KatalogArtikel> baueKatalog() {
   }
   for (final grad in const [15, 30, 45, 67, 87]) {
     for (final dn in htDn) {
-      if (dn <= 40 && grad != 45 && grad != 87) continue; // gibt es nicht
+      if (dn == 150 && grad == 67) continue; // 160 mm: kein 67°
       b.add(kKatKanal, 'Kanal-Bögen & Abzweige', 'HT-Bogen', 'HT-Bogen $grad° DN $dn', 'Stk.', typ: 'Bogen');
     }
   }

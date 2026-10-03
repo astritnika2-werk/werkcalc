@@ -64,8 +64,8 @@ void _kupferLoet(KatalogBaukasten b) {
   const groessen = [12, 15, 18, 22, 28, 35, 42, 54];
   for (final d in groessen) {
     final dim = '$d mm';
-    // Lötbogen: 90° I/I, I/A, A/A (Einsteckbogen); 45° I/I und I/A.
-    for (final e in _enden) {
+    // Kupfer-Lötbogen 90° und 45°: I/I und I/A (A/A gibt es nicht).
+    for (final e in const ['I/I', 'I/A']) {
       b.add(k, u, 'Kupferbogen', 'Kupferbogen 90° $e Ø$d', 'Stk.',
           typ: 'Bogen', material: mat, dim: dim);
     }
@@ -89,10 +89,10 @@ void _kupferLoet(KatalogBaukasten b) {
         typ: 'Zubehör', material: mat, dim: dim);
     // Bogen mit Gewinde und Wandwinkel gibt es nur in den kleinen Größen.
     if (d >= 15 && d <= 28) {
-      b.add(k, u, 'Kupferbogen', 'Kupferbogen 90° mit Innengewinde Ø$d × ${_zollZu(d)}', 'Stk.',
-          typ: 'Bogen', material: mat, dim: '$d mm × ${_zollZu(d)}');
-      b.add(k, u, 'Kupferbogen', 'Kupferbogen 90° mit Außengewinde Ø$d × ${_zollZu(d)}', 'Stk.',
-          typ: 'Bogen', material: mat, dim: '$d mm × ${_zollZu(d)}');
+      b.add(k, u, 'Kupferbogen', 'Rotguss-Lötbogen 90° mit Innengewinde Ø$d × ${_zollZu(d)}', 'Stk.',
+          typ: 'Bogen', material: 'Rotguss', dim: '$d mm × ${_zollZu(d)}');
+      b.add(k, u, 'Kupferbogen', 'Rotguss-Lötbogen 90° mit Außengewinde Ø$d × ${_zollZu(d)}', 'Stk.',
+          typ: 'Bogen', material: 'Rotguss', dim: '$d mm × ${_zollZu(d)}');
     }
     if (d == 15 || d == 18 || d == 22) {
       b.add(k, u, 'Wandscheibe Kupfer', 'Wandscheibe Kupfer Ø$d × ${_zollZu(d)} Innengewinde', 'Stk.',
@@ -115,7 +115,7 @@ void _press(KatalogBaukasten b) {
   const u = 'Pressfittings';
   const systeme = <String, List<int>>{
     'Kupfer': [12, 15, 18, 22, 28, 35, 42, 54],
-    'Edelstahl': [12, 15, 18, 22, 28, 35, 42, 54, 64, 76, 88, 108],
+    'Edelstahl': [15, 18, 22, 28, 35, 42, 54, 64, 76, 88, 108],
     'C-Stahl': [12, 15, 18, 22, 28, 35, 42, 54],
     'Mehrschicht': [16, 20, 26, 32, 40, 50, 63],
   };
@@ -326,8 +326,7 @@ void _abwasserFittings(KatalogBaukasten b) {
   const kgDn = [110, 125, 160, 200, 250, 315];
   for (final dn in htDn) {
     final dim = 'DN $dn';
-    // Kleine Nennweiten (32, 40): nur 45° und 87°.
-    final winkel = dn <= 40 ? const [45, 87] : const [15, 30, 45, 67, 87];
+    final winkel = dn == 150 ? const [15, 30, 45, 87] : const [15, 30, 45, 67, 87];
     for (final w in winkel) {
       b.add(k, u, 'HT-Bogen', 'HT-Bogen $w° DN $dn', 'Stk.',
           typ: 'Bogen', material: 'HT (PP)', dim: dim);
@@ -345,10 +344,6 @@ void _abwasserFittings(KatalogBaukasten b) {
       }
       b.add(k, u, 'HT-Reinigungsrohr', 'HT-Reinigungsrohr DN $dn', 'Stk.',
           typ: 'Zubehör', material: 'HT (PP)', dim: dim);
-    }
-    if (dn >= 50 && dn <= 100) {
-      b.add(k, u, 'HT-Abzweig', 'HT-Doppelabzweig 87° DN $dn/$dn', 'Stk.',
-          typ: 'Abzweig', material: 'HT (PP)', dim: 'DN $dn/$dn');
     }
   }
   for (final p in _paare(htDn, stufen: 2)) {
@@ -373,7 +368,7 @@ void _abwasserFittings(KatalogBaukasten b) {
         typ: 'Muffe', material: 'KG (PVC-U)', dim: dim);
     b.add(k, u, 'KG-Muffe', 'KG-Muffenstopfen DN $dn', 'Stk.',
         typ: 'Zubehör', material: 'KG (PVC-U)', dim: dim);
-    for (final w in const [45, 67, 87]) {
+    for (final w in const [45, 87]) {
       b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN $dn/$dn', 'Stk.',
           typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN $dn/$dn');
     }
@@ -386,7 +381,7 @@ void _abwasserFittings(KatalogBaukasten b) {
     b.add(k, u, 'KG-Reduzierung', 'KG-Reduzierung DN ${p[0]}/${p[1]}', 'Stk.',
         typ: 'Reduzierung', material: 'KG (PVC-U)', dim: 'DN ${p[0]}/${p[1]}');
   }
-  for (final p in const [[160, 110], [200, 160], [250, 200], [315, 250]]) {
+  for (final p in const [[160, 110], [200, 160]]) {
     for (final w in const [45, 87]) {
       b.add(k, u, 'KG-Abzweig', 'KG-Abzweig $w° DN ${p[0]}/${p[1]}', 'Stk.',
           typ: 'Abzweig', material: 'KG (PVC-U)', dim: 'DN ${p[0]}/${p[1]}');

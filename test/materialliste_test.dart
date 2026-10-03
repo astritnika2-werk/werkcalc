@@ -284,10 +284,14 @@ void main() {
     test('Varianten, die es nicht gibt, fehlen', () {
       for (final n in const [
         'Kupferbogen 45° A/A Ø22',
+        'Kupferbogen 90° A/A Ø22',
+        'Kupfer-Wandwinkel Ø35 auf 1¼"',
+        'HT-Doppelabzweig 87° DN 100/100',
+        'KG-Abzweig 67° DN 160/160',
         'Pressfitting Bogen 90° A/A Ø22 (Kupfer)',
         'Gewindefitting Winkel 45° AG/AG 1" (Edelstahl)',
         'PP-R Wandwinkel Ø110 × 3" Innengewinde',
-        'HT-Bogen 15° DN 32',
+        'Pressfitting Bogen 90° I/I Ø12 (Edelstahl)',
         'Gewindefitting Muffe IG/IG 4" (Messing)',
       ]) {
         expect(namen, isNot(contains(n)), reason: n);
@@ -297,8 +301,8 @@ void main() {
     test('Kupfer Ø22: alle gewünschten Varianten vorhanden', () {
       for (final n in const [
         'Kupferbogen 45° I/I Ø22', 'Kupferbogen 45° I/A Ø22',
-        'Kupferbogen 90° I/I Ø22', 'Kupferbogen 90° I/A Ø22', 'Kupferbogen 90° A/A Ø22',
-        'Kupferbogen 90° mit Innengewinde Ø22 × ¾"', 'Kupferbogen 90° mit Außengewinde Ø22 × ¾"',
+        'Kupferbogen 90° I/I Ø22', 'Kupferbogen 90° I/A Ø22',
+        'Rotguss-Lötbogen 90° mit Innengewinde Ø22 × ¾"', 'Rotguss-Lötbogen 90° mit Außengewinde Ø22 × ¾"', 'HT-Bogen 15° DN 32', 'HT-Bogen 67° DN 40',
         'T-Stück Kupfer Ø22', 'Reduzierung Kupfer 28 × 22', 'Muffe Kupfer Ø22',
         'Übergang Kupfer Ø22 × ¾" Innengewinde', 'Übergang Kupfer Ø22 × ¾" Außengewinde',
         'Verschraubung Kupfer Ø22',

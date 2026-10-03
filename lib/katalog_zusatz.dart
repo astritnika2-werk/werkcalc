@@ -73,7 +73,8 @@ void _sanitaer(KatalogBaukasten b) {
     'Brauchwasser-Ausdehnungsgefäß 8 l',
     'Brauchwasser-Ausdehnungsgefäß 18 l',
     'Brauchwasser-Ausdehnungsgefäß 25 l',
-    'Brauchwasser-Ausdehnungsgefäß 35 l',
+    'Brauchwasser-Ausdehnungsgefäß 2 l',
+    'Brauchwasser-Ausdehnungsgefäß 12 l',
     'Brauchwasser-Ausdehnungsgefäß 50 l',
     'Opferanode Magnesium',
     'Heizpatrone Speicher 2 kW',
@@ -360,7 +361,7 @@ void _heizung(KatalogBaukasten b) {
     b.add(k, 'Sicherheit', 'Sicherheitsventil', 'Sicherheitsventil ½" $bar bar', 'Stk.', typ: 'Ventil');
     b.add(k, 'Sicherheit', 'Sicherheitsventil', 'Sicherheitsventil ¾" $bar bar', 'Stk.', typ: 'Ventil');
   }
-  for (final l in const [8, 12, 18, 24, 35, 50, 80, 100, 150, 200, 300, 500]) {
+  for (final l in const [8, 12, 18, 25, 33, 50, 60, 80, 100, 150, 200, 300, 500]) {
     b.add(k, 'Ausdehnungsgefäße', 'Ausdehnungsgefäß', 'Ausdehnungsgefäß Heizung $l l', 'Stk.', typ: 'Zubehör');
   }
   b.liste_(k, 'Ausdehnungsgefäße', [

@@ -88,8 +88,7 @@ void _fittings(KatalogBaukasten b) {
   const k = kFittings;
   for (final d in kMm) {
     b.add(k, 'Kupferfittings (Löt)', 'Kupfer-Kreuzstück', 'Kupfer-Kreuzstück Ø$d', 'Stk.', typ: 'Kreuzstück', stichworte: 'kreuz');
-    b.add(k, 'Kupferfittings (Löt)', 'Kupferbogen', 'Kupferbogen 90° A/A Ø$d', 'Stk.', typ: 'Bogen');
-    b.add(k, 'Kupferfittings (Löt)', 'Kupfer-Wandwinkel', 'Kupfer-Wandwinkel Ø$d auf ${_g(d)}', 'Stk.', typ: 'Bogen', stichworte: 'wandscheibe');
+    if (d >= 15 && d <= 22) b.add(k, 'Kupferfittings (Löt)', 'Kupfer-Wandwinkel', 'Kupfer-Wandwinkel Ø$d auf ${_g(d)}', 'Stk.', typ: 'Bogen', stichworte: 'wandscheibe');
     b.add(k, 'Kupferfittings (Löt)', 'Kupfer-Überschiebmuffe', 'Kupfer-Überschiebmuffe Ø$d', 'Stk.', typ: 'Muffe');
     b.add(k, 'Kupferfittings (Löt)', 'Lötfitting', 'Lötfitting Verschraubung Ø$d', 'Stk.', typ: 'Zubehör', stichworte: 'kupfer');
     b.add(k, 'Kupferfittings (Löt)', 'Lötfitting', 'Lötfitting Rotguss Bogen 90° Ø$d', 'Stk.', typ: 'Bogen', stichworte: 'kupfer');
