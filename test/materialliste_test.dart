@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:werkcalc/katalog.dart';
 import 'package:werkcalc/materialliste.dart';
+import 'package:werkcalc/produkt_bild.dart';
 
 void main() {
   final katalog = baueKatalog();
@@ -269,6 +270,83 @@ void main() {
       expect(erst('pompë').toLowerCase(), contains('pumpe'));
       expect(erst('bojler').toLowerCase(), anyOf(contains('speicher'), contains('boiler')));
       expect(erst('kanalizim'), anyOf(startsWith('HT'), startsWith('KG')));
+    });
+  });
+
+  group('Fittings-Varianten und Karten', () {
+    final k = baueKatalog();
+    final namen = {for (final a in k) a.name};
+
+    test('Namen sind eindeutig', () {
+      expect(namen.length, k.length);
+    });
+
+    test('Kupfer Ø22: alle gewünschten Varianten vorhanden', () {
+      for (final n in const [
+        'Kupferbogen 45° I/I Ø22', 'Kupferbogen 45° I/A Ø22', 'Kupferbogen 45° A/A Ø22',
+        'Kupferbogen 90° I/I Ø22', 'Kupferbogen 90° I/A Ø22', 'Kupferbogen 90° A/A Ø22',
+        'Kupferbogen 90° I/I kurze Ausführung Ø22', 'Kupferbogen 90° I/I lange Ausführung Ø22',
+        'Kupferbogen 90° mit Innengewinde Ø22 × ¾"', 'Kupferbogen 90° mit Außengewinde Ø22 × ¾"',
+        'T-Stück Kupfer Ø22', 'Reduzierung Kupfer 28 × 22', 'Muffe Kupfer Ø22',
+        'Übergang Kupfer Ø22 × ¾" Innengewinde', 'Übergang Kupfer Ø22 × ¾" Außengewinde',
+        'Verschraubung Kupfer Ø22',
+      ]) {
+        expect(namen, contains(n), reason: n);
+      }
+    });
+
+    test('gleiche Logik für Edelstahl, Stahl, Mehrschicht, Kunststoff', () {
+      for (final n in const [
+        'Pressfitting Bogen 45° I/I Ø22 (Edelstahl)', 'Pressfitting Bogen 90° I/A Ø22 (C-Stahl)',
+        'Pressfitting Bogen 90° A/A Ø26 (Mehrschicht)', 'Pressfitting Reduzierung 28 × 22 (Edelstahl)',
+        'Pressfitting Übergang Ø22 × ¾" Außengewinde (Kupfer)',
+        'Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)', 'Gewindefitting Winkel 45° AG/AG 1" (Edelstahl)',
+        'Schweißbogen 90° lange Ausführung DN 50 (Stahl)', 'PP-R Winkel 90° Ø25',
+        'PVC-U Winkel 45° Ø50', 'HT-Abzweig 45° DN 100 / 100', 'KG-Abzweig 87° DN 150 / 100',
+      ]) {
+        expect(namen, contains(n), reason: n);
+      }
+    });
+
+    test('„bogen 22“: Kupferbögen zuerst, alle Varianten einzeln', () {
+      final r = sucheKatalog('bogen 22', k, limit: 60);
+      final top = r.artikel.take(10).map((a) => a.name).toList();
+      expect(top.every((n) => n.startsWith('Kupferbogen')), isTrue, reason: '$top');
+      expect(r.artikel.map((a) => a.name), contains('Kupferbogen 90° I/I Ø22'));
+      expect(r.artikel.map((a) => a.name), contains('Kupferbogen 45° I/I Ø22'));
+    });
+
+    test('Karte: Werkstoff, Maß und Art', () {
+      final a = k.firstWhere((x) => x.name == 'Kupferbogen 90° I/I Ø22');
+      expect(a.werkstoffAnzeige, 'Kupfer');
+      expect(a.massAnzeige, '22 mm');
+      expect(a.artAnzeige, 'Bogen 90° I/I');
+      expect(a.kurzInfo, 'Kupfer · 22 mm · Bogen 90° I/I');
+      final r = k.firstWhere((x) => x.name == 'Reduzierung Kupfer 28 × 22');
+      expect(r.massAnzeige, '28 × 22 mm');
+    });
+
+    test('Jeder Artikel hat Karte und Skizze', () {
+      for (final a in k) {
+        expect(a.kurzInfo, isA<String>());
+        expect(bildInfo(a).art, isA<BildArt>());
+      }
+    });
+
+    test('Skizze: Winkel und Enden', () {
+      KatalogArtikel f(String n) => k.firstWhere((x) => x.name == n);
+      final b = bildInfo(f('Kupferbogen 45° I/A Ø22'));
+      expect(b.art, BildArt.bogen);
+      expect(b.winkel, 45);
+      expect(b.ende1, EndeArt.innen);
+      expect(b.ende2, EndeArt.aussen);
+      final g = bildInfo(f('Gewindefitting Winkel 90° IG/AG ¾" (verzinkt)'));
+      expect(g.ende1, EndeArt.innengewinde);
+      expect(g.ende2, EndeArt.aussengewinde);
+      expect(bildInfo(f('Kupferbogen 90° I/I lange Ausführung Ø22')).radius, 2);
+      expect(bildInfo(f('T-Stück Kupfer Ø22')).art, BildArt.tstueck);
+      expect(bildInfo(f('Muffe Kupfer Ø22')).art, BildArt.muffe);
+      expect(bildInfo(f('Reduzierung Kupfer 28 × 22')).art, BildArt.reduzierung);
     });
   });
 }

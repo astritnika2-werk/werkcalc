@@ -121,6 +121,8 @@ class KatalogArtikel {
     String? familie,
     this.typ = '',
     this.stichworte = '',
+    this.material = '',
+    this.dimension = '',
   }) : _familie = familie;
 
   final String name;
@@ -128,6 +130,11 @@ class KatalogArtikel {
   final String kategorie;
   final String unter;
   final String typ;
+
+  /// Werkstoff und Maß, soweit beim Anlegen bekannt (sonst aus dem Namen
+  /// abgeleitet, siehe [werkstoffAnzeige] und [massAnzeige]).
+  final String material;
+  final String dimension;
 
   /// Zusätzliche Suchwörter (nur für die Suche, nicht sichtbar).
   final String stichworte;
@@ -146,7 +153,70 @@ class KatalogArtikel {
         familie: j['familie']?.toString(),
         typ: (j['typ'] ?? '').toString(),
         stichworte: (j['stichworte'] ?? '').toString(),
+        material: (j['material'] ?? '').toString(),
+        dimension: (j['dimension'] ?? '').toString(),
       );
+
+  /// Werkstoff für die Anzeige.
+  String get werkstoffAnzeige =>
+      material.isNotEmpty ? material : _werkstoffAusName(name);
+
+  /// Maß für die Anzeige.
+  String get massAnzeige =>
+      dimension.isNotEmpty ? dimension : _massAusName(name);
+
+  /// Art/Ausführung: der Name ohne Werkstoff und Maß, z. B. „Bogen 90° I/A“.
+  String get artAnzeige => _artAusName(name, werkstoffAnzeige, massAnzeige, familie);
+
+  /// Eine Zeile mit den wichtigsten Angaben: Werkstoff · Maß · Art.
+  String get kurzInfo => [
+        werkstoffAnzeige,
+        massAnzeige,
+        artAnzeige,
+      ].where((e) => e.isNotEmpty).join(' · ');
+}
+
+const List<List<String>> _werkstoffe = [
+  ['Edelstahl', 'Edelstahl'], ['C-Stahl', 'C-Stahl'], ['Kupfer', 'Kupfer'],
+  ['Mehrschicht', 'Mehrschichtverbund'], ['Verbundrohr', 'Mehrschichtverbund'],
+  ['PP-R', 'PP-R'], ['PE-X', 'PE-X'], ['PE-RT', 'PE-RT'], ['PE-HD', 'PE-HD'],
+  ['PVC', 'PVC'], ['HT-', 'HT (PP)'], ['KG', 'KG (PVC-U)'],
+  ['Rotguss', 'Rotguss'], ['Messing', 'Messing'], ['verzinkt', 'verzinkt'],
+  ['Stahl', 'Stahl'], ['Aluminium', 'Aluminium'], ['Gummi', 'Gummi'],
+  ['Mineralwolle', 'Mineralwolle'], ['Kunststoff', 'Kunststoff'],
+];
+
+String _werkstoffAusName(String name) {
+  for (final w in _werkstoffe) {
+    if (name.contains(w[0])) return w[1];
+  }
+  return '';
+}
+
+final RegExp _massRegex = RegExp(
+  r'(Ø\s?\d+(?:[,.]\d+)?(?:\s?[×x]\s?[0-9¼½¾⅜⅛]+[¼½¾⅜⅛]?"?)?(?:\s?mm)?|DN\s?\d+|\d+(?:[,.]\d+)?\s?(?:cm|mm|kW|l|m²|m³)\b|[0-9]?[¼½¾⅜⅛]"|\d+"|\d+\s?[×x]\s?\d+(?:\s?mm)?)',
+);
+
+String _massAusName(String name) {
+  final m = _massRegex.firstMatch(name);
+  return m == null ? '' : m.group(0)!.trim();
+}
+
+String _artAusName(String name, String werkstoff, String mass, String familie) {
+  var t = name;
+  t = t.replaceAll(RegExp(r'\s*\([^)]*\)'), '');
+  if (mass.isNotEmpty) t = t.replaceFirst(mass, '');
+  t = t.replaceAll(RegExp(r'Ø\s?\d+(?:[,.]\d+)?(?:\s?[×x]\s?[0-9¼½¾⅜⅛]+[¼½¾⅜⅛]?"?)*'), '');
+  t = t.replaceAll(RegExp(r'DN\s?\d+(?:\s?[×x/]\s?(?:DN\s?)?\d+)*'), '');
+  t = t.replaceAll(RegExp(r'\b\d+\s?[×x]\s?\d+(?:\s?[×x]\s?\d+)*\b'), '');
+  t = t.replaceAll(RegExp(r'[0-9]?[¼½¾⅜⅛]"'), '');
+  for (final w in const ['Kupfer', 'Edelstahl', 'C-Stahl', 'verzinkt', 'Messing']) {
+    t = t.replaceAll(w, '');
+  }
+  t = t.replaceAll(RegExp(r'\s+'), ' ').replaceAll(RegExp(r'[-–/ ]+$'), '').trim();
+  t = t.replaceAll(RegExp(r'^[-–]+'), '').trim();
+  if (t.isEmpty) return familie;
+  return t[0].toUpperCase() + t.substring(1);
 }
 
 /// Liest Katalog-Erweiterungen aus JSON (Liste oder {"artikel": [...]}).
@@ -324,7 +394,9 @@ int _bewerte(
 const List<String> kFamilienReihenfolge = [
   // Kupfer, Pressfittings, Rohre
   'Kupferrohr', 'Kupferbogen', 'Muffe Kupfer', 'T-Stück Kupfer',
-  'Reduzierung Kupfer', 'Pressfitting', 'Edelstahlrohr', 'Stahlrohr',
+  'Reduzierung Kupfer', 'Übergang Kupfer', 'Verschraubung Kupfer',
+  'Pressfitting', 'Pressbogen', 'Press-T-Stück', 'Pressmuffe',
+  'Press-Reduzierung', 'Press-Übergang', 'Edelstahlrohr', 'Stahlrohr',
   'Mehrschichtverbundrohr', 'Kunststoffrohr', 'PE-Rohr', 'PE-X Rohr',
   'PVC-Rohr', 'PP-Rohr', 'HT-Rohr', 'KG-Rohr', 'KG2000-Rohr',
   'Gewindefitting', 'PP-R Fitting', 'HT-Bogen', 'KG-Bogen', 'KG2000-Bogen',

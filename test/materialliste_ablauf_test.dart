@@ -30,7 +30,7 @@ void main() {
       expect(r.artikel, isNotEmpty, reason: q);
       final fam = r.familien.take(8).map((f) => f.name).join(', ');
       final art = r.artikel.take(4).map((a) => a.name).join(' | ');
-      bericht.writeln('„$q“ → Familien: [$fam] Artikel: $art');
+      bericht.writeln('„$q“ → ${r.artikel.length} Treffer; Familien: [$fam] Artikel: $art');
     }
   });
 

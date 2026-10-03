@@ -141,7 +141,7 @@ const Map<String, String> _familienAlias = {
 /// Baukasten zum Erzeugen der Katalogeinträge.
 class KatalogBaukasten {
   final List<KatalogArtikel> liste = [];
-  final Set<String> _namen = {};
+  final Map<String, int> _index = {};
 
   void add(
     String kat,
@@ -151,8 +151,13 @@ class KatalogBaukasten {
     String einheit, {
     String typ = '',
     String stichworte = '',
+    String material = '',
+    String dim = '',
   }) {
-    if (!_namen.add(name)) return; // Namen sind eindeutig
+    final alt = _index[name]; // Namen sind eindeutig
+    if (alt != null && (liste[alt].material.isNotEmpty || (material.isEmpty && dim.isEmpty))) {
+      return;
+    }
     var u = unter;
     final fam = _familienAlias[familie] ?? familie;
     if (fam == 'PP-R Fitting') u = 'Kunststofffittings';
@@ -164,8 +169,7 @@ class KatalogBaukasten {
       if (name.contains(teil) && !sw.contains(w)) sw = '$sw $w'.trim();
     });
     if (k == kAbwasser) sw = '$sw abwasser kanalisation'.trim();
-    liste.add(
-      KatalogArtikel(
+    final neu = KatalogArtikel(
         name: name,
         einheit: einheit,
         kategorie: k,
@@ -173,8 +177,15 @@ class KatalogBaukasten {
         familie: fam,
         typ: typ,
         stichworte: sw,
-      ),
-    );
+        material: material,
+        dimension: dim,
+      );
+    if (alt != null) {
+      liste[alt] = neu; // gleicher Name, jetzt mit Werkstoff und Maß
+    } else {
+      _index[name] = liste.length;
+      liste.add(neu);
+    }
   }
 
   /// Mehrere Namen auf einmal; Familie = erstes Wort, falls nicht angegeben.

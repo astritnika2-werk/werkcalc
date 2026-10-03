@@ -1,7 +1,7 @@
 name: werkcalc
 description: WerkCalc, der private Handwerker Rechner (Heizung, Sanitär, Klima, Elektro, Bau). Offline, ohne Login, mit PDF-Angebot.
 publish_to: "none"
-version: 0.6.0+6
+version: 0.7.0+7
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

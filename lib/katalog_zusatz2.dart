@@ -3,6 +3,7 @@
 // Regenerative Energien, Messen/Prüfen, Elektro.
 
 import 'katalog_basis.dart';
+import 'katalog_fittings.dart';
 
 String _g(int mm) => const {
       15: '½"', 18: '½"', 22: '¾"', 28: '1"', 35: '1¼"', 42: '1½"', 54: '2"',
@@ -19,6 +20,7 @@ void ergaenzeKatalogTeil2(KatalogBaukasten b) {
   _regenerativ(b);
   _messen(b);
   _elektro(b);
+  ergaenzeFittings(b);
 }
 
 // ───────────────────────── Rohre ─────────────────────────

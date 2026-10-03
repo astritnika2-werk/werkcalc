@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'logic.dart';
 import 'materialliste.dart';
+import 'produkt_bild.dart';
 import 'materialliste_store.dart';
 import 'pdf_materialliste.dart';
 
@@ -831,15 +832,141 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
         ),
       );
 
+  final Map<String, double> _mengen = {};
+
+  Future<void> _direktHinzufuegen(KatalogArtikel a) async {
+    final menge = _mengen[a.name] ?? 1;
+    await _store.hinzufuegen(
+      widget.baustelleId,
+      name: a.name,
+      menge: menge,
+      einheit: a.einheit,
+    );
+    if (!mounted) return;
+    setState(() {
+      _neu++;
+      _mengen.remove(a.name);
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text('${a.name}: ${formatMenge(menge)} ${a.einheit} hinzugefügt'),
+        ),
+      );
+  }
+
   Widget _artikelKachel(KatalogArtikel a, Set<String> inListe) {
     final drin = inListe.contains(a.name);
-    return ListTile(
-      title: Text(a.name, style: const TextStyle(fontSize: 17)),
-      subtitle: Text(a.unter),
-      trailing: drin
-          ? Icon(Icons.check_circle, color: Colors.green.shade700)
-          : Text(a.einheit, style: const TextStyle(fontSize: 15)),
-      onTap: () => _waehle(a),
+    final scheme = Theme.of(context).colorScheme;
+    final menge = _mengen[a.name] ?? 1;
+    final info = a.kurzInfo;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      elevation: 0,
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: drin ? Colors.green.shade600 : scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => _waehle(a),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ProduktBild(artikel: a, fallback: _kategorieIcon(a.kategorie)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.name,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                        if (info.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              info,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            drin ? 'In der Liste · ${a.unter}' : a.unter,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: drin ? Colors.green.shade800 : scheme.outline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                IconButton.outlined(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Weniger',
+                  icon: const Icon(Icons.remove),
+                  onPressed: menge > 1
+                      ? () => setState(() => _mengen[a.name] = menge - 1)
+                      : null,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    '${formatMenge(menge)} ${a.einheit}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton.outlined(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Mehr',
+                  icon: const Icon(Icons.add),
+                  onPressed: () => setState(() => _mengen[a.name] = menge + 1),
+                ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => _direktHinzufuegen(a),
+                  icon: const Icon(Icons.add_shopping_cart, size: 20),
+                  label: const Text('Hinzufügen'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
