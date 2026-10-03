@@ -49,7 +49,14 @@ jobs:
           exit $code
 
       - name: APK bauen (Test-Installation)
-        run: flutter build apk --release
+        run: |
+          set +e
+          flutter build apk --release > build_out.txt 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            echo "::error title=Buildfehler::$( (grep -n -i -E 'error|wrong|failed|exception|requires|minSdk|cannot|not found' build_out.txt | head -40; echo ----; tail -n 25 build_out.txt) | head -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
+          fi
+          exit $code
 
       - name: AAB bauen (für Google Play)
         run: flutter build appbundle --release
