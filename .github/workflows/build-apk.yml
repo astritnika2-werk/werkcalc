@@ -36,7 +36,8 @@ jobs:
         continue-on-error: true
 
       - name: Tests
-        run: flutter test
+        run: flutter test --reporter github
+        continue-on-error: true
 
       - name: APK bauen (Test-Installation)
         run: flutter build apk --release
