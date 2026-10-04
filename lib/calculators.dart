@@ -58,10 +58,10 @@ Widget _pumpePage({
         ],
         initial: rau,
       ),
-      const CalcField(
+      CalcField(
         'Mittlere Wassertemperatur',
         '',
-        options: [
+        options: const [
           CalcOption('40 °C (Fußbodenheizung)', '40'),
           CalcOption('50 °C', '50'),
           CalcOption('60 °C', '60'),
