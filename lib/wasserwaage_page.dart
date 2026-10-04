@@ -19,9 +19,7 @@ const _kRand = Color(0xFF244A86);
 const _kText = Colors.white;
 const _kText2 = Color(0xFFA9B9D6);
 const _kBlau = Color(0xFF0B4A9F);
-const _kLimeHell = Color(0xFFD9FF4A);
 const _kLimeMitte = Color(0xFFA6EA00);
-const _kLimeDunkel = Color(0xFF68B400);
 const _kGruen = Color(0xFF2FBF4A);
 const _ziffern = [FontFeature.tabularFigures()];
 
@@ -146,22 +144,21 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
           child: Text(
             'Wählen Sie die Betriebsart, passend zur Lage des Handys. Gemessen wird nur in dieser Lage; '
             'nichts wird automatisch erraten.\n\n'
-            'Fläche (2D): Handy flach auf die Rückseite (Display oben). Die Blase zeigt die Neigung in '
-            'zwei Achsen und wandert zur höheren Seite.\n'
+            'Fläche (2D): Handy flach auf die Rückseite (Display oben). Der Marker zeigt die Neigung in '
+            'zwei Achsen (X nach rechts, Y nach vorne) und steht bei X 0,00° / Y 0,00° genau in der Mitte.\n'
             'Linie – Display vorne: Handy aufrecht, Display zum Benutzer. Gemessen wird links/rechts '
             'über die Breite (X-Achse).\n'
             'Linie – Linke Seite: Handy steht auf der linken Seitenkante, Display zum Benutzer '
             '(Oberkante zeigt nach links). Gemessen wird entlang der Längskante (Y-Achse). Die '
             'Anzeige ist dafür gedreht, damit sie in dieser Lage lesbar ist.\n'
             'Linie – Rechte Seite: wie links, nur auf der rechten Seitenkante (Oberkante zeigt nach rechts).\n'
-            'Die Blase wandert immer zur höheren Seite.\n\n'
+            'Der Marker bewegt sich immer zur höheren Seite. Skala: ±5° (darüber bleibt der Marker am Rand und wird orange).\n\n'
             'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. Die Lage in '
             'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die '
             'gewählte Betriebsart. „Zurücksetzen“ löscht alle.\n\n'
             'Neigung: Winkel gegen die Senkrechte der Lage. Gefälle %: Höhenunterschied je 100 cm. '
             'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
-            'Die Skala der Blase ist vergrößert gezeichnet, damit kleine Neigungen sichtbar sind; die '
-            'Zahlen sind unverändert. Die Werte werden mit dem Gyroskop geglättet, damit sie nicht '
+            'Die Anzeige ist linear und verwendet exakt die gemessenen Werte. Die Werte werden mit dem Gyroskop geglättet, damit sie nicht '
             'springen; im Ruhezustand entspricht der Wert genau der Messung.\n\n$_kHinweis',
           ),
         ),
@@ -288,13 +285,20 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   List<Widget> _flaecheAnsicht(Neigung? n, bool lageOk) {
     final Neigung? m = (n != null && n.gueltig && lageOk) ? n : null;
     return [
+      Center(
+        child: Text(
+          m == null ? 'X – / Y –' : 'X ${zahl(m.aGrad)}° / Y ${zahl(m.bGrad)}°',
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern),
+        ),
+      ),
+      const SizedBox(height: 10),
       LayoutBuilder(builder: (context, c) {
         final d = math.min(c.maxWidth, 420.0);
         return Center(
           child: SizedBox(
             width: d,
             height: d,
-            child: CustomPaint(size: Size(d, d), painter: _LibellePainter(neigung: m)),
+            child: CustomPaint(size: Size(d, d), painter: FlaechePainter(neigung: m)),
           ),
         );
       }),
@@ -313,29 +317,46 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   List<Widget> _linieAnsicht(Modus modus, Linienmessung? l, bool lageOk) {
     final Linienmessung? m = (l != null && l.gueltig && lageOk) ? l : null;
     final grad = m?.grad ?? 0.0;
+    final text = m == null ? '–' : linienRichtung(m).toUpperCase();
+    final waagerecht = m != null && text == 'WAAGERECHT';
     return [
-      SizedBox(
-        height: 84,
-        child: CustomPaint(
-          painter: _RoehrePainter(waagerecht: true, grad: grad, aktiv: m != null),
-          child: const SizedBox.expand(),
-        ),
-      ),
-      const SizedBox(height: 8),
       Center(
         child: Text(m == null ? '–' : '${zahl(grad)}°',
-            style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+            style: const TextStyle(fontSize: 64, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
       ),
       Center(
         child: Text(
           m == null ? '–' : '${zahl(m.prozent)} %   |   ${zahl(m.mmProM, 0)} mm/m',
-          style: const TextStyle(fontSize: 17, color: _kText, fontFeatures: _ziffern),
+          style: const TextStyle(fontSize: 19, color: _kText, fontFeatures: _ziffern),
         ),
       ),
-      const SizedBox(height: 4),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 120,
+        child: CustomPaint(
+          painter: SkalaPainter(grad: grad, aktiv: m != null),
+          child: const SizedBox.expand(),
+        ),
+      ),
+      const SizedBox(height: 6),
       Center(child: Text(modus.achseText, style: const TextStyle(color: _kText2, fontSize: 12))),
       const SizedBox(height: 8),
-      _Richtung(text: m == null ? '–' : linienRichtung(m)),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: waagerecht ? const Color(0xFF123F27) : const Color(0xFFDCE8FB),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: waagerecht ? _kGruen : const Color(0xFF9DB9E6)),
+        ),
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 22,
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w800,
+                color: waagerecht ? _kText : const Color(0xFF0B2A5B))),
+      ),
     ];
   }
 
@@ -523,171 +544,222 @@ class _Banner extends StatelessWidget {
   }
 }
 
-class _Richtung extends StatelessWidget {
-  const _Richtung({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => _Karte(
-        child: Row(children: [
-          const Icon(Icons.straighten, color: _kText2),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _kText)),
-          ),
-        ]),
-      );
-}
-
 // ───────────────────────── Zeichnung ─────────────────────────
 
-/// Kreislibelle (2D). Die Blase kommt aus derselben Rechnung wie die Zahlen
-/// ([blasenPosition]); sie wandert zur höheren Seite.
-class _LibellePainter extends CustomPainter {
-  _LibellePainter({required this.neigung});
-  final Neigung? neigung;
+/// Skalenbereich der digitalen Anzeige in Grad (±). Die Anzeige ist linear;
+/// darüber hinaus bleibt der Marker am Rand stehen und wird orange.
+const double _kSkala = 5.0;
 
-  static const _ringe = [1.0, 5.0, 15.0, 30.0, 45.0];
+/// Lage des Markers auf der 1D-Skala: −1 (links, −5°) … 0 (Mitte, 0°) … +1 (rechts, +5°).
+/// Linear im Messwert; über den Rand hinaus bleibt der Marker am Rand.
+double skalaAnteil(double grad) => (grad / _kSkala).clamp(-1.0, 1.0);
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final n = neigung; // null, wenn kein gültiger Messwert
-    final aktiv = n != null;
-    final mitte = size.center(Offset.zero);
-    final r = size.width / 2 - 4;
-    final rand = r * 0.07;
-    final inner = r - rand;
-
-    // Metallring und Scheibe.
-    canvas.drawCircle(
-      mitte,
-      r,
-      Paint()
-        ..shader = const SweepGradient(colors: [
-          Color(0xFF5B6678), Color(0xFFC3CBD8), Color(0xFF4A5568), Color(0xFFB0B9C8), Color(0xFF5B6678),
-        ]).createShader(Rect.fromCircle(center: mitte, radius: r)),
-    );
-    canvas.drawCircle(
-      mitte,
-      inner,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [_kLimeHell, _kLimeMitte, _kLimeDunkel],
-          stops: [0.0, 0.65, 1.0],
-        ).createShader(Rect.fromCircle(center: mitte, radius: inner)),
-    );
-
-    final dunkel = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = const Color(0xFF0B2A5B).withValues(alpha: 0.75);
-    final fein = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = const Color(0xFF0B2A5B).withValues(alpha: 0.28);
-
-    final br = inner * 0.12; // Blasenradius
-    final skalaR = inner - br; // Radius der größten Neigung der Lage
-    for (final a in _ringe) {
-      canvas.drawCircle(mitte, skalaR * anzeigeSkala(a), a == 1.0 ? dunkel : fein);
-    }
-    canvas.drawLine(mitte - Offset(inner, 0), mitte + Offset(inner, 0), dunkel);
-    canvas.drawLine(mitte - Offset(0, inner), mitte + Offset(0, inner), dunkel);
-    // Teilstriche am Rand.
-    for (var i = 0; i < 4; i++) {
-      final w = i * math.pi / 2;
-      final d = Offset(math.cos(w), math.sin(w));
-      canvas.drawLine(mitte + d * (inner - 10), mitte + d * inner, dunkel..strokeWidth = 2);
-    }
-
-    // Blase.
-    final pos = n != null ? blasenPosition(n) : (dx: 0.0, dy: 0.0);
-    final bm = mitte + Offset(pos.dx, pos.dy) * skalaR;
-    canvas.drawCircle(bm + Offset(br * 0.15, br * 0.2), br * 1.05, Paint()..color = Colors.black.withValues(alpha: 0.25));
-    canvas.drawCircle(
-      bm,
-      br,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-0.35, -0.4),
-          colors: aktiv
-              ? const [Color(0xFFE9FFB5), Color(0xFF2FBF4A), Color(0xFF0B7A2B)]
-              : const [Color(0xFFE0E5EE), Color(0xFF8E99AB), Color(0xFF5B6678)],
-          stops: const [0.0, 0.55, 1.0],
-        ).createShader(Rect.fromCircle(center: bm, radius: br)),
-    );
+/// Lage des Markers in der 2D-Fläche (x nach rechts, y nach oben, −1…1), linear in den
+/// Messwerten X und Y (Grad). Außerhalb der Skala bleibt die Richtung erhalten.
+({double x, double y, bool ausserhalb}) flaechenAnteil(double xGrad, double yGrad) {
+  final groesst = math.max(xGrad.abs(), yGrad.abs());
+  if (groesst > _kSkala) {
+    return (x: xGrad / groesst, y: yGrad / groesst, ausserhalb: true);
   }
+  return (x: xGrad / _kSkala, y: yGrad / _kSkala, ausserhalb: false);
+}
+const _kOrange = Color(0xFFFFA24A);
 
-  @override
-  bool shouldRepaint(_LibellePainter o) => true;
+void _beschriften(Canvas canvas, String text, Offset pos,
+    {Color color = _kText2, double size = 12, FontWeight weight = FontWeight.w600, Alignment anker = Alignment.center}) {
+  final tp = TextPainter(
+    text: TextSpan(text: text, style: TextStyle(color: color, fontSize: size, fontWeight: weight, fontFeatures: _ziffern)),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  final dx = pos.dx - tp.width * (anker.x + 1) / 2;
+  final dy = pos.dy - tp.height * (anker.y + 1) / 2;
+  tp.paint(canvas, Offset(dx, dy));
 }
 
-/// Libellenrohr (1D), waagerecht oder senkrecht. Positiver Winkel: das positive
-/// Ende der Achse (rechts bzw. oben) liegt höher, die Blase wandert dorthin.
-class _RoehrePainter extends CustomPainter {
-  _RoehrePainter({required this.waagerecht, required this.grad, required this.aktiv});
-  final bool waagerecht;
+/// Digitale Skala (1D): −5° … +5°, Marker bewegt sich linear mit dem Messwert.
+/// Bei exakt 0° steht der Marker genau in der Mitte.
+class SkalaPainter extends CustomPainter {
+  SkalaPainter({required this.grad, required this.aktiv});
   final double grad;
   final bool aktiv;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final laenge = waagerecht ? size.width : size.height;
-    final breite = waagerecht ? size.height : size.width;
-    // In waagerechter Richtung zeichnen und bei senkrecht drehen (oben = positiv).
-    canvas.save();
-    if (!waagerecht) {
-      canvas.translate(0, size.height);
-      canvas.rotate(-math.pi / 2);
-    }
-    final rect = Rect.fromLTWH(0, 0, laenge, breite);
-    final rr = RRect.fromRectAndRadius(rect.deflate(2), Radius.circular(breite / 2.4));
-    canvas.drawRRect(rr, Paint()..color = const Color(0xFF14233F));
-    final innen = RRect.fromRectAndRadius(rect.deflate(breite * 0.13), Radius.circular(breite / 2.8));
+    final w = size.width, h = size.height;
+    final box = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, h), const Radius.circular(14));
+    canvas.drawRRect(box, Paint()..color = _kKarte);
     canvas.drawRRect(
-      innen,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_kLimeHell, _kLimeMitte, _kLimeDunkel],
-          stops: [0.0, 0.5, 1.0],
-        ).createShader(innen.outerRect),
-    );
-    canvas.drawRRect(
-        rr,
+        box,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 4
-          ..color = const Color(0xFFB4BDCB));
+          ..strokeWidth = 1
+          ..color = _kRand);
 
-    final br = breite * 0.30;
-    final nutz = laenge / 2 - breite * 0.13 - br - 2;
-    final cx = laenge / 2, cy = breite / 2;
-    final strich = Paint()
-      ..strokeWidth = 1.6
-      ..color = const Color(0xFF0B2A5B).withValues(alpha: 0.75);
-    final dx1 = anzeigeSkala(1.0) * nutz; // Marken bei ±1°
-    for (final x in [cx - dx1 - br, cx + dx1 + br, cx]) {
-      canvas.drawLine(Offset(x, breite * 0.13), Offset(x, breite * 0.87), strich);
+    const rand = 28.0;
+    final x0 = rand, x1 = w - rand;
+    final cx = (x0 + x1) / 2;
+    final achseY = h * 0.62;
+    double xAt(double g) => cx + (g / _kSkala) * (x1 - x0) / 2;
+
+    // Kopfzeile: Richtung der Seiten.
+    _beschriften(canvas, '◀ LINKS HÖHER', Offset(14, 14), size: 11, anker: Alignment.centerLeft);
+    _beschriften(canvas, 'RECHTS HÖHER ▶', Offset(w - 14, 14), size: 11, anker: Alignment.centerRight);
+
+    final achse = Paint()
+      ..color = _kText2
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(x0, achseY), Offset(x1, achseY), achse);
+
+    // Teilstriche: alle 0,5°, groß bei −5, −2,5, 0, +2,5, +5.
+    for (var i = -10; i <= 10; i++) {
+      final g = i * 0.5;
+      final gross = i % 5 == 0;
+      final null0 = i == 0;
+      final len = null0 ? 26.0 : (gross ? 18.0 : 8.0);
+      canvas.drawLine(
+        Offset(xAt(g), achseY),
+        Offset(xAt(g), achseY + len),
+        Paint()
+          ..color = null0 ? _kLimeMitte : _kText2
+          ..strokeWidth = null0 ? 3 : (gross ? 2 : 1),
+      );
     }
-    final bx = cx + (aktiv ? leistenPosition(grad) : 0) * nutz;
-    canvas.drawCircle(Offset(bx + br * 0.12, cy + br * 0.18), br * 1.05, Paint()..color = Colors.black.withValues(alpha: 0.25));
+    const marken = <double>[-5, -2.5, 0, 2.5, 5];
+    for (final g in marken) {
+      final t = g == 0 ? '0°' : '${g > 0 ? '+' : '−'}${zahl(g.abs(), g.abs() == 2.5 ? 1 : 0)}°';
+      _beschriften(canvas, t, Offset(xAt(g), achseY + 38),
+          color: g == 0 ? _kText : _kText2, size: 13, weight: g == 0 ? FontWeight.w800 : FontWeight.w600);
+    }
+
+    // Marker.
+    final ausserhalb = grad.abs() > _kSkala;
+    final mx = cx + (aktiv ? skalaAnteil(grad) : 0) * (x1 - x0) / 2;
+    final farbe = !aktiv
+        ? const Color(0xFF8E99AB)
+        : (ausserhalb ? _kOrange : (zahl(grad) == '0,00' ? _kGruen : Colors.white));
+    canvas.drawLine(Offset(mx, 30), Offset(mx, achseY), Paint()
+      ..color = farbe.withValues(alpha: 0.55)
+      ..strokeWidth = 2);
+    final dreieck = Path()
+      ..moveTo(mx - 10, 30)
+      ..lineTo(mx + 10, 30)
+      ..lineTo(mx, 46)
+      ..close();
+    canvas.drawPath(dreieck, Paint()..color = farbe);
+    canvas.drawCircle(Offset(mx, achseY), 9, Paint()..color = farbe);
     canvas.drawCircle(
-      Offset(bx, cy),
-      br,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-0.35, -0.4),
-          colors: aktiv
-              ? const [Color(0xFFE9FFB5), Color(0xFF2FBF4A), Color(0xFF0B7A2B)]
-              : const [Color(0xFFE0E5EE), Color(0xFF8E99AB), Color(0xFF5B6678)],
-          stops: const [0.0, 0.55, 1.0],
-        ).createShader(Rect.fromCircle(center: Offset(bx, cy), radius: br)),
-    );
-    canvas.restore();
+        Offset(mx, achseY),
+        9,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = _kBg);
+    if (aktiv && ausserhalb) {
+      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(cx, 14), color: _kOrange, size: 11, weight: FontWeight.w700);
+    }
   }
 
   @override
-  bool shouldRepaint(_RoehrePainter o) => true;
+  bool shouldRepaint(SkalaPainter o) => true;
+}
+
+/// Digitale Fläche (2D): X/Y in Grad, Skala ±5°, Marker bewegt sich linear mit
+/// den Messwerten (X nach rechts, Y nach oben = vorne). Exakt in der Mitte bei X 0,00° / Y 0,00°.
+class FlaechePainter extends CustomPainter {
+  FlaechePainter({required this.neigung});
+  final Neigung? neigung; // null: kein gültiger Messwert
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = neigung;
+    final aktiv = n != null;
+    final w = size.width;
+    final box = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, w), const Radius.circular(16));
+    canvas.drawRRect(box, Paint()..color = _kKarte);
+    canvas.drawRRect(
+        box,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = _kRand);
+
+    const rand = 36.0;
+    final feld = Rect.fromLTWH(rand, rand, w - 2 * rand, w - 2 * rand);
+    final mitte = feld.center;
+    final halb = feld.width / 2;
+    double px(double g) => mitte.dx + g / _kSkala * halb;
+    double py(double g) => mitte.dy - g / _kSkala * halb;
+
+    canvas.drawRect(feld, Paint()..color = const Color(0xFF0A2149));
+    // Raster: alle 1°, kräftiger bei 0, ±2,5, ±5.
+    for (var i = -5; i <= 5; i++) {
+      final fein = Paint()
+        ..strokeWidth = 1
+        ..color = _kRand.withValues(alpha: 0.55);
+      canvas.drawLine(Offset(px(i.toDouble()), feld.top), Offset(px(i.toDouble()), feld.bottom), fein);
+      canvas.drawLine(Offset(feld.left, py(i.toDouble())), Offset(feld.right, py(i.toDouble())), fein);
+    }
+    final kraeftig = Paint()
+      ..strokeWidth = 1.5
+      ..color = _kText2.withValues(alpha: 0.8);
+    for (final g in const [-2.5, 2.5]) {
+      canvas.drawLine(Offset(px(g), feld.top), Offset(px(g), feld.bottom), kraeftig);
+      canvas.drawLine(Offset(feld.left, py(g)), Offset(feld.right, py(g)), kraeftig);
+    }
+    canvas.drawRect(
+        feld,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = _kText2);
+    // Achsenkreuz und Mittenring.
+    final kreuz = Paint()
+      ..strokeWidth = 2.5
+      ..color = Colors.white;
+    canvas.drawLine(Offset(feld.left, mitte.dy), Offset(feld.right, mitte.dy), kreuz);
+    canvas.drawLine(Offset(mitte.dx, feld.top), Offset(mitte.dx, feld.bottom), kreuz);
+    canvas.drawCircle(
+        mitte,
+        halb * 0.06,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = _kLimeMitte);
+
+    // Beschriftung der Skala und der Seiten.
+    for (final g in const [-5.0, -2.5, 0.0, 2.5, 5.0]) {
+      final t = g == 0 ? '0°' : '${g > 0 ? '+' : '−'}${zahl(g.abs(), g.abs() == 2.5 ? 1 : 0)}°';
+      _beschriften(canvas, t, Offset(px(g), feld.bottom + 10), size: 11);
+      _beschriften(canvas, t, Offset(feld.left - 6, py(g)), size: 11, anker: Alignment.centerRight);
+    }
+    _beschriften(canvas, 'VORNE', Offset(mitte.dx, 11), size: 11, weight: FontWeight.w800);
+    _beschriften(canvas, 'HINTEN', Offset(mitte.dx, w - 11), size: 11, weight: FontWeight.w800);
+    _beschriften(canvas, 'LINKS', Offset(6, w - 11), size: 11, weight: FontWeight.w800, anker: Alignment.centerLeft);
+    _beschriften(canvas, 'RECHTS', Offset(w - 6, w - 11), size: 11, weight: FontWeight.w800, anker: Alignment.centerRight);
+
+    // Marker. Außerhalb der Skala bleibt er am Rand (Richtung bleibt erhalten) und wird orange.
+    final fm = flaechenAnteil(n?.aGrad ?? 0.0, n?.bGrad ?? 0.0);
+    final ausserhalb = fm.ausserhalb;
+    final pos = Offset(mitte.dx + fm.x * halb, mitte.dy - fm.y * halb);
+    final nn = n;
+    final farbe = nn == null
+        ? const Color(0xFF8E99AB)
+        : (ausserhalb ? _kOrange : (zahl(nn.aGrad) == '0,00' && zahl(nn.bGrad) == '0,00' ? _kGruen : _kLimeMitte));
+    canvas.drawCircle(pos, 15, Paint()..color = farbe.withValues(alpha: 0.28));
+    canvas.drawCircle(pos, 9, Paint()..color = farbe);
+    canvas.drawCircle(
+        pos,
+        9,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = _kBg);
+    if (aktiv && ausserhalb) {
+      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(feld.right - 4, feld.top + 12),
+          color: _kOrange, size: 11, weight: FontWeight.w700, anker: Alignment.centerRight);
+    }
+  }
+
+  @override
+  bool shouldRepaint(FlaechePainter o) => true;
 }

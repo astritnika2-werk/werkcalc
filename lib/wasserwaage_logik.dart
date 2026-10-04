@@ -353,7 +353,7 @@ extension ModusInfo on Modus {
       };
 
   String get anleitung => switch (this) {
-        Modus.flaeche => 'Handy flach auf die Rückseite legen (Display oben). Die Blase zeigt die Neigung in alle Richtungen.',
+        Modus.flaeche => 'Handy flach auf die Rückseite legen (Display oben). Der Marker zeigt die Neigung in alle Richtungen.',
         Modus.linieDisplay =>
           'Handy aufrecht halten, Display zum Benutzer. Gemessen wird links/rechts über die Breite des Handys (X-Achse).',
         Modus.linieLinks =>
