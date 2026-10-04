@@ -235,8 +235,8 @@ class _PumpenPruefungPageState extends State<PumpenPruefungPage> {
                         child: CustomPaint(
                           painter: _QhPainter(
                             kurve: kurve.normiert,
-                            q: q,
-                            h: h,
+                            q: q!,
+                            h: h!,
                             schnittQ: pr.schnittQ,
                             schnittH: pr.schnittH,
                             textFarbe: scheme.onSurface,
