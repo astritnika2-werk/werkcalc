@@ -24,6 +24,43 @@ rm -f "$MANIFEST.bak"
 mkdir -p "$HOME/.android"
 cp tools/debug.keystore "$HOME/.android/debug.keystore"
 
+# Feste Debug-Signatur ausdrücklich im Gradle-Projekt setzen (die Kopie nach
+# ~/.android allein wurde nicht überall verwendet: jede APK hatte einen anderen Schlüssel).
+python3 - <<'PY'
+import re
+for p in ("android/app/build.gradle.kts", "android/app/build.gradle"):
+    try:
+        s = open(p, encoding="utf-8").read()
+    except FileNotFoundError:
+        continue
+    if "tools/debug.keystore" in s:
+        continue
+    if p.endswith(".kts"):
+        blk = """
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("${rootDir.parent}/tools/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+"""
+    else:
+        blk = """
+    signingConfigs {
+        debug {
+            storeFile file("${rootDir.parent}/tools/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+"""
+    s = re.sub(r"(\bandroid\s*\{)", lambda m: m.group(1) + blk, s, count=1)
+    open(p, "w", encoding="utf-8").write(s)
+PY
+
 # Berechtigungen für Spracheingabe (Mikrofon) und Spracherkennungsdienst
 python3 - <<'PY'
 import re
