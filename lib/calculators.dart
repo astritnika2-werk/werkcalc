@@ -29,7 +29,7 @@ Widget _pumpePage({
     if (temperatur != null && (double.parse(o) - temperatur).abs() < 1e-9) temp = o;
   }
   String rau = '0.0015';
-  for (final o in const ['0.0015', '0.007', '0.045', '0.15']) {
+  for (final o in const ['0.0015']) {
     if (rauheit != null && (double.parse(o) - rauheit).abs() < 1e-9) rau = o;
   }
   return CalcPage(
@@ -51,10 +51,7 @@ Widget _pumpePage({
         'Rohrmaterial',
         '',
         options: const [
-          CalcOption('Kupfer, Edelstahl', '0.0015'),
-          CalcOption('Kunststoff, Mehrschicht', '0.007'),
-          CalcOption('Stahl neu', '0.045'),
-          CalcOption('Stahl verzinkt', '0.15'),
+          CalcOption('Edelstahl', '0.0015'),
         ],
         initial: rau,
       ),
@@ -342,10 +339,7 @@ final List<CalcDef> calculators = [
           'Rohrmaterial',
           '',
           options: [
-            CalcOption('Kupfer, Edelstahl (k = 0,0015 mm)', '0.0015'),
-            CalcOption('Kunststoff, Mehrschicht (k = 0,007 mm)', '0.007'),
-            CalcOption('Stahl neu (k = 0,045 mm)', '0.045'),
-            CalcOption('Stahl verzinkt (k = 0,15 mm)', '0.15'),
+            CalcOption('Edelstahl (k = 0,0015 mm)', '0.0015'),
           ],
           initial: '0.0015',
         ),
