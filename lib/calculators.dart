@@ -35,7 +35,7 @@ Widget _pumpePage({
   return CalcPage(
     title: 'Pumpe wählen',
     note: 'Umwälzpumpe Heizung: entweder Volumenstrom eingeben oder Heizleistung '
-        'und Spreizung (ΔT). Rohrlänge = Vor- und Rücklauf zusammen. ζ-Werte '
+        'und Spreizung (ΔT). Rohrlänge = Vorlauf + Rücklauf zusammen (Einfachlänge × 2, nicht doppelt rechnen). ζ-Werte '
         'und Widerstände von Wärmeerzeuger, Ventilen und Mischern laut Herstellerangabe.',
     requireAll: false,
     richtwert: true,
@@ -44,7 +44,7 @@ Widget _pumpePage({
       const CalcField('Heizleistung', 'kW'),
       const CalcField('Spreizung ΔT (Vor-/Rücklauf)', 'K', initial: '20'),
       CalcField('Rohr-Innendurchmesser', 'mm', initial: durchmesser),
-      CalcField('Rohrlänge (Vor- + Rücklauf)', 'm', initial: laenge),
+      CalcField('Rohrlänge Vorlauf + Rücklauf zusammen', 'm', initial: laenge),
       CalcField('Einzelwiderstände (Σζ)', '', initial: zeta ?? '0'),
       const CalcField('Weitere Widerstände (Kessel, Ventile, Mischer)', 'mbar', initial: '0'),
       CalcField(
@@ -319,7 +319,10 @@ final List<CalcDef> calculators = [
       title: 'Druckverlust Rohrleitung',
       note: 'Gerades Rohr mit Wasser (Darcy-Weisbach, Colebrook-White). '
           'Bögen, Ventile usw. als Summe der ζ-Werte angeben. Richtwert, '
-          'ersetzt keine Rohrnetzberechnung.',
+          'ersetzt keine Rohrnetzberechnung. Die Rohrlänge gilt für genau die '
+          'Strecke, die du eingibst: bei einem Heizkreis Vorlauf + Rücklauf '
+          'zusammen (nicht doppelt rechnen). „Weiter: Pumpe wählen“ übernimmt '
+          'diese Länge unverändert.',
       requireAll: false,
       fields: const [
         CalcField('Volumenstrom', ''),
