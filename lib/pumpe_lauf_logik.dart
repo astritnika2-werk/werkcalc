@@ -45,7 +45,10 @@ double mittelwert(List<double> x) =>
     x.isEmpty ? 0 : x.reduce((a, b) => a + b) / x.length;
 
 class LaufMessung {
-  const LaufMessung({required this.acc, required this.mag});
+  const LaufMessung({required this.acc, required this.mag, this.dauerMs = 0});
+
+  /// Tatsächliche Messdauer in Millisekunden (für die Abtastrate).
+  final int dauerMs;
 
   /// Betrag der Beschleunigung ohne Schwerkraft (m/s²).
   final List<double> acc;
@@ -56,7 +59,19 @@ class LaufMessung {
   double get accRms => schwankungRms(acc);
   double get magRms => schwankungRms(mag);
   double get accMittel => mittelwert(acc);
+  double get accSpitze =>
+      acc.isEmpty ? 0 : acc.reduce(math.max) - acc.reduce(math.min);
+
+  /// Abtastrate in Hz (0, wenn Dauer unbekannt).
+  double get rateAcc => dauerMs <= 0 ? 0 : acc.length * 1000 / dauerMs;
+  double get rateMag => dauerMs <= 0 ? 0 : mag.length * 1000 / dauerMs;
 }
+
+/// Signalqualität nach Abtastrate (interne Richtwerte).
+enum SignalGuete { gut, mittel, schwach }
+
+SignalGuete signalGuete(double rateHz) =>
+    rateHz >= 80 ? SignalGuete.gut : (rateHz >= 40 ? SignalGuete.mittel : SignalGuete.schwach);
 
 class LaufErgebnis {
   const LaufErgebnis(this.status, this.grund,

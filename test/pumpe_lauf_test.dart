@@ -13,6 +13,7 @@ List<double> sig(double amp, int n, {double base = 0, double f = 0.9}) {
 }
 
 void main() {
+  gueteTests();
   final ref = LaufMessung(acc: sig(0.004, 300, base: 0.02), mag: sig(0.1, 300, base: 45));
   test('laeuft bei starkem Signal beider Sensoren', () {
     final p = LaufMessung(acc: sig(0.08, 300, base: 0.1), mag: sig(1.5, 300, base: 48));
@@ -37,5 +38,13 @@ void main() {
   test('unklar bei unruhiger Referenz', () {
     final r2 = LaufMessung(acc: sig(0.1, 300, base: 0.1), mag: sig(0.1, 300, base: 45));
     expect(bewerteLauf(r2, ref).status, LaufStatus.unklar);
+  });
+}
+
+void gueteTests() {
+  test('Signalguete nach Abtastrate', () {
+    expect(signalGuete(100), SignalGuete.gut);
+    expect(signalGuete(50), SignalGuete.mittel);
+    expect(signalGuete(10), SignalGuete.schwach);
   });
 }
