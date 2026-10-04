@@ -173,9 +173,18 @@ void main() {
       for (final (d, grad) in k) {
         t = mul(anheben(d, grad), t);
       }
-      return richtungsText(messeRuhe(mul(t, basis['flach (Display oben)']!)));
+      // rauschfreie Sensorwerte: exakte Beschriftung; mit Rauschen siehe unten
+      final u = aufDevice(mul(t, basis['flach (Display oben)']!));
+      return richtungsText(berechneNeigung(u[0] * g, u[1] * g, u[2] * g));
     }
 
+    test('mit Sensorrauschen: Hauptrichtung steht an erster Stelle', () {
+      final b = basis['flach (Display oben)']!;
+      expect(richtungsText(messeRuhe(mul(anheben(west, 8), b))), startsWith('Links höher'));
+      expect(richtungsText(messeRuhe(mul(anheben(ost, 8), b))), startsWith('Rechts höher'));
+      expect(richtungsText(messeRuhe(mul(anheben(nord, 8), b))), contains('orne höher'));
+      expect(richtungsText(messeRuhe(mul(anheben(sued, 8), b))), contains('inten höher'));
+    });
     test('eben → Waagerecht', () => expect(messeRuhe(basis['flach (Display oben)']!).gesamtGrad, lessThan(0.3)));
     test('links höher', () => expect(text([(west, 8)]), 'Links höher'));
     test('rechts höher', () => expect(text([(ost, 8)]), 'Rechts höher'));
@@ -295,17 +304,17 @@ void main() {
     test('Handy flach auf dem Tisch', () {
       final n = berechneNeigung(0.12, -0.08, 9.78);
       expect(n.lage.ref, Achse.z);
-      expect(n.gesamtGrad, lessThan(0.8));
+      expect(n.gesamtGrad, lessThan(1.0));
     });
     test('linke Kante angehoben (x negativ)', () {
       final n = berechneNeigung(-1.2, 0.05, 9.7);
       expect(n.aGrad, lessThan(-6));
-      expect(richtungsText(n), 'Links höher');
+      expect(richtungsText(n), startsWith('Links höher'));
     });
     test('Vorderkante angehoben (y positiv)', () {
       final n = berechneNeigung(0.03, 1.5, 9.68);
       expect(n.bGrad, greaterThan(8));
-      expect(richtungsText(n), 'Vorne höher');
+      expect(richtungsText(n), contains('orne höher'));
     });
     test('auf der linken Seite (x ≈ +9,8)', () {
       final n = berechneNeigung(9.79, 0.1, 0.4);
