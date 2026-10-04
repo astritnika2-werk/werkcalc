@@ -26,9 +26,9 @@ const _ziffern = [FontFeature.tabularFigures()];
 
 /// Zeitkonstante der reinen Anzeige-Beruhigung in Sekunden. Die Messung (GravityFilter,
 /// Kalibrierung, Berechnung) bleibt unverändert; nur was auf dem Bildschirm steht, wird
-/// zusätzlich geglättet. Die Messglättung hat 0,5 s, 0,15 s = rund 30 % davon
-/// (erster Versuch; 0,2 s wären rund 40 %). Interner Anzeigewert, keine Herstellervorgabe, keine Norm.
-const double kAnzeigeTau = 0.15;
+/// zusätzlich geglättet. Zweite Stufe: gegenüber 0,15 s rund 30 % ruhiger (0,15 s × 1,3 ≈ 0,195 s).
+/// Interner Anzeigewert, keine Herstellervorgabe, keine Norm.
+const double kAnzeigeTau = 0.195;
 
 /// Einfache exponentielle Glättung (Tiefpass erster Ordnung) des Schwerkraftvektors
 /// nur für die Anzeige. Im Ruhezustand ist das Ergebnis exakt der Messwert (kein Versatz,
@@ -390,6 +390,7 @@ class WasserwaageAnsicht extends StatelessWidget {
   // ───────── Breit/flach (Seitenlagen, Querformat): alles in einer schmalen Kopfleiste,
   // die Skala bzw. Fläche nutzt den ganzen restlichen Platz ─────────
   Widget _breit() {
+    final kal = _kalStatus(kalLaeuft: kalLaeuft, kalMeldung: kalMeldung, kalOk: kalOk, kalibriert: kalibriert);
     final Widget mitte;
     final Widget haupt;
     if (modus.istFlaeche) {
@@ -422,12 +423,68 @@ class WasserwaageAnsicht extends StatelessWidget {
         const SizedBox(width: 10),
         _Mini(wert: m == null ? '–' : '${zahl(m.mmProM, 0)} mm/m', label: 'Gefälle'),
       ]);
-      haupt = CustomPaint(
-        painter: SkalaPainter(grad: m?.grad ?? 0.0, aktiv: m != null),
-        child: const SizedBox.expand(),
-      );
+      haupt = Stack(children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: SkalaPainter(grad: m?.grad ?? 0.0, aktiv: m != null),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        // Kalibrieren: kleine Leiste oben mittig zwischen LINKS HÖHER und RECHTS HÖHER.
+        Positioned(
+          top: 5,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: _kBlau,
+                        minimumSize: const Size(0, 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2)),
+                    onPressed: onKalibrieren,
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.my_location, size: 16),
+                      SizedBox(width: 6),
+                      Text('Kalibrieren', style: TextStyle(fontSize: 12)),
+                    ]),
+                  ),
+                  if (onZuruecksetzen != null) ...[
+                    const SizedBox(width: 6),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: _kText,
+                          side: const BorderSide(color: _kRand),
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2)),
+                      onPressed: onZuruecksetzen,
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.restart_alt, size: 16),
+                        SizedBox(width: 4),
+                        Text('Zurücksetzen', style: TextStyle(fontSize: 11)),
+                      ]),
+                    ),
+                  ],
+                ]),
+                const SizedBox(height: 3),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 300),
+                  child: Text(kal.text,
+                      key: const Key('kalStatus'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kal.farbe, fontSize: 10, height: 1.2)),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ]);
     }
-    final kal = _kalStatus(kalLaeuft: kalLaeuft, kalMeldung: kalMeldung, kalOk: kalOk, kalibriert: kalibriert);
     return Column(children: [
       SizedBox(
         height: 46,
@@ -458,6 +515,7 @@ class WasserwaageAnsicht extends StatelessWidget {
               ? Center(child: _Karte(child: Text(fehler!, style: const TextStyle(color: _kText))))
               : Row(children: [
                   Expanded(child: haupt),
+                  if (modus.istFlaeche) ...[
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 104,
@@ -512,6 +570,7 @@ class WasserwaageAnsicht extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ],
                 ]),
         ),
       ),
@@ -1070,7 +1129,7 @@ class SkalaPainter extends CustomPainter {
     final rand = w * 0.07;
     final x0 = rand, x1 = w - rand;
     final cx = (x0 + x1) / 2;
-    final achseY = h * 0.52;
+    final achseY = h * 0.58;
     double xAt(double g) => cx + (g / _kSkala) * (x1 - x0) / 2;
 
     // Kopfzeile: Richtung der Seiten.
@@ -1136,8 +1195,10 @@ class SkalaPainter extends CustomPainter {
           ..strokeWidth = 2.5 * k
           ..color = _kBg);
     if (aktiv && ausserhalb) {
-      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(cx, kopfY),
-          color: _kOrange, size: kopfSize, weight: FontWeight.w700);
+      // Hinweis auf der dem Marker gegenüberliegenden Seite (oben mittig sitzt die Kalibrierleiste).
+      final links = grad > 0;
+      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(links ? w * 0.04 : w * 0.96, achseY - u * 0.18),
+          color: _kOrange, size: kopfSize, weight: FontWeight.w700, anker: links ? Alignment.centerLeft : Alignment.centerRight);
     }
   }
 
