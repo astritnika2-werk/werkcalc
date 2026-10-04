@@ -35,7 +35,7 @@ Widget _pumpePage({
   return CalcPage(
     title: 'Pumpe wählen',
     note: 'Umwälzpumpe Heizung: entweder Volumenstrom eingeben oder Heizleistung '
-        'und Spreizung (ΔT). Rohrlänge = Vorlauf + Rücklauf zusammen (Einfachlänge × 2, nicht doppelt rechnen). ζ-Werte '
+        'und Spreizung (ΔT). Rohrlänge = Vorlauf + Rücklauf. Wenn nur eine Strecke gemessen wurde, diese × 2 rechnen. ζ-Werte '
         'und Widerstände von Wärmeerzeuger, Ventilen und Mischern laut Herstellerangabe.',
     requireAll: false,
     richtwert: true,
