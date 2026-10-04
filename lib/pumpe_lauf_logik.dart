@@ -9,7 +9,8 @@ import 'dart:math' as math;
 /// über der Referenz und über dem Sensorrauschen liegen. Alles andere ist
 /// „nicht eindeutig“.
 ///
-/// Alle Schwellen sind interne Richtwerte – keine Herstellervorgabe, keine Norm.
+/// Alle Schwellen sind interne experimentelle Richtwerte (noch keine echten
+/// Messreihen mit laufenden/stehenden Pumpen) – keine Herstellervorgabe, keine Norm.
 
 const double kLaufRauschAcc = 0.005; // m/s², Sensorrauschen (Richtwert)
 const double kLaufRauschMag = 0.15; // µT, Sensorrauschen (Richtwert)
@@ -44,6 +45,29 @@ double schwankungRms(List<double> x, {int fenster = 9}) {
 double mittelwert(List<double> x) =>
     x.isEmpty ? 0 : x.reduce((a, b) => a + b) / x.length;
 
+/// Kennwerte einer Messreihe (Rohwerte, ohne Filterung).
+class Kennwerte {
+  const Kennwerte(this.n, this.mittel, this.rms, this.min, this.max, this.streuung);
+  final int n;
+  final double mittel;
+  final double rms; // Effektivwert der Rohwerte
+  final double min;
+  final double max;
+  final double streuung; // Standardabweichung
+}
+
+Kennwerte kennwerte(List<double> x) {
+  if (x.isEmpty) return const Kennwerte(0, 0, 0, 0, 0, 0);
+  final m = mittelwert(x);
+  var q = 0.0, d = 0.0;
+  for (final v in x) {
+    q += v * v;
+    d += (v - m) * (v - m);
+  }
+  return Kennwerte(x.length, m, math.sqrt(q / x.length), x.reduce(math.min),
+      x.reduce(math.max), math.sqrt(d / x.length));
+}
+
 class LaufMessung {
   const LaufMessung({required this.acc, required this.mag, this.dauerMs = 0});
 
@@ -59,6 +83,8 @@ class LaufMessung {
   double get accRms => schwankungRms(acc);
   double get magRms => schwankungRms(mag);
   double get accMittel => mittelwert(acc);
+  Kennwerte get accKennwerte => kennwerte(acc);
+  Kennwerte get magKennwerte => kennwerte(mag);
   double get accSpitze =>
       acc.isEmpty ? 0 : acc.reduce(math.max) - acc.reduce(math.min);
 
@@ -73,30 +99,75 @@ enum SignalGuete { gut, mittel, schwach }
 SignalGuete signalGuete(double rateHz) =>
     rateHz >= 80 ? SignalGuete.gut : (rateHz >= 40 ? SignalGuete.mittel : SignalGuete.schwach);
 
+/// Warum eine Messung nicht eindeutig ist.
+enum LaufGrund { ok, zuWenigDaten, refUnruhig, handBewegt, nichtVergleichbar, schwach }
+
+const kTextRefUnruhig =
+    'Die Referenzmessung weist starke Schwankungen auf. Bitte Handy ruhig auf einen '
+    'vibrationsarmen Untergrund legen und die Referenz wiederholen.';
+
+/// Messstabilität der Referenz (Stufe 2 der Messqualität).
+class StabilitaetsErgebnis {
+  const StabilitaetsErgebnis(this.stabil, this.grund, [this.text = '']);
+  final bool stabil;
+  final LaufGrund grund;
+  final String text;
+}
+
+StabilitaetsErgebnis bewerteReferenz(LaufMessung ref) {
+  if (ref.acc.length < kLaufMinProben || ref.mag.length < kLaufMinProben) {
+    return const StabilitaetsErgebnis(false, LaufGrund.zuWenigDaten,
+        'Zu wenige Messwerte – Messung wiederholen (Sensoren des Handys liefern zu wenig Daten).');
+  }
+  if (ref.accRms > kLaufRefMaxAcc ||
+      ref.magRms > kLaufRefMaxMag ||
+      ref.accMittel > kLaufHandMaxAcc) {
+    return const StabilitaetsErgebnis(false, LaufGrund.refUnruhig, kTextRefUnruhig);
+  }
+  return const StabilitaetsErgebnis(true, LaufGrund.ok);
+}
+
+/// Messstabilität an der Pumpe: nur Handbewegung (Mittelwert der Beschleunigung);
+/// Vibration selbst ist hier erwünscht und wird nicht als Störung gewertet.
+bool probeRuhigGehalten(LaufMessung p) => p.accMittel <= kLaufHandMaxAcc;
+
+/// Vergleichbarkeit Referenz ↔ Pumpe: ähnliche Abtastrate beider Messungen.
+bool vergleichbar(LaufMessung ref, LaufMessung p) {
+  if (ref.dauerMs <= 0 || p.dauerMs <= 0) return true; // unbekannt
+  double v(double a, double b) => b <= 0 ? 0 : a / b;
+  final ra = v(ref.rateAcc, p.rateAcc), rm = v(ref.rateMag, p.rateMag);
+  return ra >= 0.5 && ra <= 2 && rm >= 0.5 && rm <= 2;
+}
+
 class LaufErgebnis {
   const LaufErgebnis(this.status, this.grund,
-      {this.verhaeltnisAcc, this.verhaeltnisMag});
+      {this.verhaeltnisAcc, this.verhaeltnisMag, this.grundTyp = LaufGrund.ok});
   final LaufStatus status;
   final String grund;
+  final LaufGrund grundTyp;
   final double? verhaeltnisAcc;
   final double? verhaeltnisMag;
 }
 
 LaufErgebnis bewerteLauf(LaufMessung ref, LaufMessung probe) {
-  if (ref.acc.length < kLaufMinProben ||
-      ref.mag.length < kLaufMinProben ||
-      probe.acc.length < kLaufMinProben ||
-      probe.mag.length < kLaufMinProben) {
-    return const LaufErgebnis(LaufStatus.unklar,
-        'Zu wenige Messwerte – Messung wiederholen (Sensoren des Handys liefern zu wenig Daten).');
+  final st = bewerteReferenz(ref);
+  if (!st.stabil) {
+    return LaufErgebnis(LaufStatus.unklar, st.text, grundTyp: st.grund);
   }
-  if (ref.accRms > kLaufRefMaxAcc || ref.magRms > kLaufRefMaxMag) {
+  if (probe.acc.length < kLaufMinProben || probe.mag.length < kLaufMinProben) {
     return const LaufErgebnis(LaufStatus.unklar,
-        'Referenz zu unruhig – weiter weg von der Pumpe und ruhig halten, dann wiederholen.');
+        'Zu wenige Messwerte – Messung wiederholen (Sensoren des Handys liefern zu wenig Daten).',
+        grundTyp: LaufGrund.zuWenigDaten);
   }
-  if (probe.accMittel > kLaufHandMaxAcc || ref.accMittel > kLaufHandMaxAcc) {
+  if (!probeRuhigGehalten(probe)) {
     return const LaufErgebnis(LaufStatus.unklar,
-        'Handy wurde bewegt – fest an die Pumpe halten und Messung wiederholen.');
+        'Handy wurde bewegt – fest an die Pumpe halten und Messung wiederholen.',
+        grundTyp: LaufGrund.handBewegt);
+  }
+  if (!vergleichbar(ref, probe)) {
+    return const LaufErgebnis(LaufStatus.unklar,
+        'Referenz und Pumpenmessung sind nicht vergleichbar (stark unterschiedliche Abtastrate) – beide Messungen wiederholen.',
+        grundTyp: LaufGrund.nichtVergleichbar);
   }
   final ra = probe.accRms / math.max(ref.accRms, kLaufRauschAcc);
   final rm = probe.magRms / math.max(ref.magRms, kLaufRauschMag);
@@ -116,5 +187,5 @@ LaufErgebnis bewerteLauf(LaufMessung ref, LaufMessung probe) {
   }
   return LaufErgebnis(LaufStatus.unklar,
       'Signal nicht stark genug für eine sichere Aussage – Messung wiederholen.',
-      verhaeltnisAcc: ra, verhaeltnisMag: rm);
+      verhaeltnisAcc: ra, verhaeltnisMag: rm, grundTyp: LaufGrund.schwach);
 }

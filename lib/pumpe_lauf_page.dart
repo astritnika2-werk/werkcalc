@@ -116,6 +116,8 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
     });
   }
 
+  bool get _refStabil => _ref != null && bewerteReferenz(_ref!).stabil;
+
   void _neu() {
     _stopp();
     setState(() {
@@ -153,13 +155,13 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
     if (_erg != null && _probe != null && _ref != null) {
       inhalt = _ergebnisSeite(_erg!, _ref!, _probe!);
     } else {
-      final stufe = _ref == null && _phase != 'probe' ? 1 : 2;
+      final stufe = (!_refStabil) && _phase != 'probe' ? 1 : 2;
       inhalt = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _kopf(scheme),
           const SizedBox(height: 12),
-          _Stepper(stufe: stufe, refFertig: _ref != null),
+          _Stepper(stufe: stufe, refFertig: _refStabil),
           const SizedBox(height: 12),
           if (stufe == 1) _schritt1(scheme) else _schritt2(scheme),
           if (_fehler != null)
@@ -226,13 +228,17 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
           const SizedBox(height: 8),
           _Chip(Icons.timer_outlined, 'Messdauer: $_refSek Sekunden'),
           const SizedBox(height: 10),
+          if (!messen && _ref != null && !_refStabil) ...[
+            _RefWarnung(bewerteReferenz(_ref!)),
+            const SizedBox(height: 10),
+          ],
           if (messen)
             _Fortschritt(verstrichenMs: _verstrichenMs, sek: _refSek)
           else
             FilledButton.icon(
               onPressed: () => _start('ref'),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Referenz messen ($_refSek s)'),
+              icon: Icon(_ref != null ? Icons.refresh : Icons.play_arrow),
+              label: Text(_ref != null ? 'Referenz wiederholen ($_refSek s)' : 'Referenz messen ($_refSek s)'),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             ),
           const SizedBox(height: 10),
@@ -322,6 +328,36 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
         ),
       );
 
+  List<Widget> _detailZeilen(LaufMessung m) {
+    final a = m.accKennwerte, g = m.magKennwerte;
+    String mm(double v) => '${_z(v * 1000)} mm/s²';
+    String ut(double v) => '${_z(v, 2)} µT';
+    return [
+      const Padding(
+        padding: EdgeInsets.only(top: 4),
+        child: Text('Vibration', style: TextStyle(fontStyle: FontStyle.italic)),
+      ),
+      _Zeile('Mittelwert', mm(a.mittel)),
+      _Zeile('RMS (Rohwerte)', mm(a.rms)),
+      _Zeile('Minimum', mm(a.min)),
+      _Zeile('Maximum', mm(a.max)),
+      _Zeile('Streuung (Std.-Abw.)', mm(a.streuung)),
+      _Zeile('Schwankung (Hochpass-RMS)', mm(m.accRms)),
+      const Padding(
+        padding: EdgeInsets.only(top: 4),
+        child: Text('Magnetfeld', style: TextStyle(fontStyle: FontStyle.italic)),
+      ),
+      _Zeile('Mittelwert', ut(g.mittel)),
+      _Zeile('RMS (Rohwerte)', ut(g.rms)),
+      _Zeile('Minimum', ut(g.min)),
+      _Zeile('Maximum', ut(g.max)),
+      _Zeile('Streuung (Std.-Abw.)', ut(g.streuung)),
+      _Zeile('Schwankung (Hochpass-RMS)', ut(m.magRms)),
+      _Zeile('Messwerte (Vib. / Magnet.)', '${m.acc.length} / ${m.mag.length}'),
+      _Zeile('Messdauer', '${_z(m.dauerMs / 1000)} s'),
+    ];
+  }
+
   Widget _ergebnisSeite(LaufErgebnis e, LaufMessung ref, LaufMessung p) {
     final scheme = Theme.of(context).colorScheme;
     final (farbe, icon, titel, untertitel, text) = switch (e.status) {
@@ -344,7 +380,13 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
       LaufStatus.unklar => (
           Colors.orange.shade800,
           Icons.help,
-          'Kein eindeutiger Pumpenbetrieb erkannt',
+          switch (e.grundTyp) {
+            LaufGrund.refUnruhig => 'Referenzmessung nicht stabil',
+            LaufGrund.handBewegt => 'Messung an der Pumpe nicht ruhig',
+            LaufGrund.zuWenigDaten => 'Zu wenige Messwerte',
+            LaufGrund.nichtVergleichbar => 'Messungen nicht vergleichbar',
+            _ => 'Kein eindeutiger Pumpenbetrieb erkannt',
+          },
           'Messung wiederholen',
           e.grund
         ),
@@ -439,11 +481,33 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Titel(Icons.signal_cellular_alt, 'Signalqualität (Abtastrate)'),
+              const _Titel(Icons.signal_cellular_alt, 'Messqualität'),
+              const SizedBox(height: 10),
+              const Text('1. Sensor-/Samplingqualität', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              _Guete('Vibration', signalGuete(p.rateAcc), zusatz: '${_z(p.rateAcc, 0)} Hz'),
+              const SizedBox(height: 4),
+              _Guete('Magnetfeld', signalGuete(p.rateMag), zusatz: '${_z(p.rateMag, 0)} Hz'),
+              const SizedBox(height: 10),
+              const Text('2. Messstabilität', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              _Stufe('Referenz', bewerteReferenz(ref).stabil ? 2 : 0, bewerteReferenz(ref).stabil ? 'Stabil' : 'Unruhig'),
+              const SizedBox(height: 4),
+              _Stufe('An der Pumpe', probeRuhigGehalten(p) ? 2 : 0, probeRuhigGehalten(p) ? 'Ruhig gehalten' : 'Bewegt'),
+              const SizedBox(height: 10),
+              const Text('3. Vergleichbarkeit Referenz ↔ Pumpe', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              _Stufe('Vergleich',
+                  (bewerteReferenz(ref).stabil && probeRuhigGehalten(p) && vergleichbar(ref, p)) ? 2 : 0,
+                  (bewerteReferenz(ref).stabil && probeRuhigGehalten(p) && vergleichbar(ref, p))
+                      ? 'Gegeben'
+                      : 'Nicht gegeben'),
               const SizedBox(height: 8),
-              _Guete('Vibrationssignal', signalGuete(p.rateAcc)),
-              const SizedBox(height: 6),
-              _Guete('Magnetfeldsignal', signalGuete(p.rateMag)),
+              const Text(
+                'Grenzwerte sind interne experimentelle Richtwerte – noch keine echten Messreihen '
+                'mit laufenden und stehenden Pumpen.',
+                style: TextStyle(fontSize: 11.5),
+              ),
             ],
           ),
         ),
@@ -489,15 +553,10 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> {
         ]),
         _Aufklapp(Icons.fact_check_outlined, 'Messdetails', [
           const Text('Referenz (Schritt 1)', style: TextStyle(fontWeight: FontWeight.w700)),
-          _Zeile('Vibration', '${_z(ref.accRms * 1000)} mm/s²'),
-          _Zeile('Magnetfeld', '${_z(ref.magRms, 2)} µT'),
-          _Zeile('Messwerte (Vib. / Magnet.)', '${ref.acc.length} / ${ref.mag.length}'),
-          const SizedBox(height: 6),
+          ..._detailZeilen(ref),
+          const SizedBox(height: 8),
           const Text('An der Pumpe (Schritt 2)', style: TextStyle(fontWeight: FontWeight.w700)),
-          _Zeile('Vibration', '${_z(p.accRms * 1000)} mm/s²'),
-          _Zeile('Magnetfeld', '${_z(p.magRms, 2)} µT'),
-          _Zeile('Messwerte (Vib. / Magnet.)', '${p.acc.length} / ${p.mag.length}'),
-          _Zeile('Messdauer', '${_z(p.dauerMs / 1000)} s'),
+          ..._detailZeilen(p),
         ]),
         _Aufklapp(Icons.info_outline, 'Hinweis zur Messung', [const Text(_kHinweis)]),
       ],
@@ -759,10 +818,63 @@ class _Diff extends StatelessWidget {
       );
 }
 
+class _RefWarnung extends StatelessWidget {
+  const _RefWarnung(this.e);
+  final StabilitaetsErgebnis e;
+  @override
+  Widget build(BuildContext context) {
+    final titel = e.grund == LaufGrund.refUnruhig ? 'Referenzmessung nicht stabil' : 'Referenzmessung unvollständig';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.14),
+        border: Border.all(color: Colors.orange.shade700),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('🟡 $titel', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(e.text),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bewertung in drei Stufen (0 schlecht, 1 mittel, 2 gut) mit Text.
+class _Stufe extends StatelessWidget {
+  const _Stufe(this.label, this.stufe, this.text);
+  final String label;
+  final int stufe;
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    final farbe = stufe == 2 ? Colors.green.shade700 : (stufe == 1 ? Colors.orange.shade700 : Colors.red.shade700);
+    final balken = stufe == 2 ? 6 : (stufe == 1 ? 4 : 2);
+    return Row(
+      children: [
+        SizedBox(width: 110, child: Text(label)),
+        for (var i = 0; i < 6; i++)
+          Container(
+            width: 14,
+            height: 10,
+            margin: const EdgeInsets.only(right: 3),
+            color: i < balken ? farbe : Colors.grey.shade300,
+          ),
+        const SizedBox(width: 6),
+        Flexible(child: Text(text, style: TextStyle(color: farbe, fontWeight: FontWeight.w700))),
+      ],
+    );
+  }
+}
+
 class _Guete extends StatelessWidget {
-  const _Guete(this.label, this.g);
+  const _Guete(this.label, this.g, {this.zusatz = ''});
   final String label;
   final SignalGuete g;
+  final String zusatz;
   @override
   Widget build(BuildContext context) {
     final (balken, farbe, text) = switch (g) {
@@ -772,16 +884,17 @@ class _Guete extends StatelessWidget {
     };
     return Row(
       children: [
-        SizedBox(width: 130, child: Text(label)),
+        SizedBox(width: 110, child: Text(label)),
         for (var i = 0; i < 6; i++)
           Container(
-            width: 16,
+            width: 14,
             height: 12,
             margin: const EdgeInsets.only(right: 3),
             color: i < balken ? farbe : Colors.grey.shade300,
           ),
         const SizedBox(width: 6),
-        Text(text, style: TextStyle(color: farbe, fontWeight: FontWeight.w700)),
+        Flexible(child: Text(zusatz.isEmpty ? text : '$text · $zusatz',
+            style: TextStyle(color: farbe, fontWeight: FontWeight.w700))),
       ],
     );
   }
