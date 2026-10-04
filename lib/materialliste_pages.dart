@@ -912,7 +912,6 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
       MapEntry('Hersteller', a.hersteller),
       MapEntry('Artikelnummer', a.artikelnummer),
       MapEntry('EAN', a.ean),
-      if (a.preis != null) MapEntry('Preis', '${a.preis!.toStringAsFixed(2).replaceAll('.', ',')} €'),
       MapEntry('Großhändler', a.grosshaendler),
       if (a.lagerbestand != null) MapEntry('Lagerbestand', '${a.lagerbestand}'),
       ...a.details.entries,
@@ -944,7 +943,7 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
                   const SizedBox(height: 6),
                   Center(
                     child: Text(
-                      foto == null ? 'Skizze' : 'Foto · ${fotoRecht!.hinweis}',
+                      foto == null ? 'Foto noch nicht verfügbar (Skizze)' : 'Foto · ${fotoRecht!.hinweis}',
                       style: TextStyle(fontSize: 12, color: scheme.outline),
                     ),
                   ),
