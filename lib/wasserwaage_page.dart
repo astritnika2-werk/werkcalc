@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,14 +7,18 @@ import 'package:sensors_plus/sensors_plus.dart';
 
 import 'wasserwaage_logik.dart';
 
-String _z(double v, [int d = 1]) => v.toStringAsFixed(d).replaceAll('.', ',');
+String _z(double v, [int d = 2]) {
+  final s = v.toStringAsFixed(d).replaceAll('.', ',');
+  // „−0,00“ vermeiden
+  return RegExp(r'^-0[,0]*$').hasMatch(s) ? s.substring(1) : s;
+}
 
 const _kHinweis =
     'Die Messung erfolgt mit den Bewegungssensoren des Smartphones. '
     'Die Genauigkeit hängt vom Gerät, der Positionierung und der Kalibrierung ab.';
 
-
-/// Wasserwaage: Neigung aus dem Beschleunigungssensor (mit Schwerkraft).
+/// Wasserwaage: Neigung aus dem Schwerkraftvektor (Beschleunigungssensor,
+/// mit Gyroskop geglättet), in jeder Lage des Handys.
 class WasserwaagePage extends StatefulWidget {
   const WasserwaagePage({super.key});
 
@@ -23,93 +27,101 @@ class WasserwaagePage extends StatefulWidget {
 }
 
 class _WasserwaagePageState extends State<WasserwaagePage> {
-  static const _alpha = 0.15;
   static const _kalibrierMs = 2000;
 
   StreamSubscription<AccelerometerEvent>? _sa;
+  StreamSubscription<GyroscopeEvent>? _sg;
   Timer? _timer;
   final Stopwatch _uhr = Stopwatch();
-  double _x = 0, _y = 0, _z0 = 0;
+  final GravityFilter _filter = GravityFilter();
+  int _letzteUs = 0;
+  double? _gx, _gy, _gz; // letzte Drehrate (rad/s)
   bool _hatWerte = false;
   String? _fehler;
 
-  Kalibrierung? _kal;
-  bool _kalibriert = false;
-  String? _kalMeldung;
-  final List<({double x, double y, double z})> _kalProben = [];
+  final Map<String, Kalibrierung> _kals = {};
+  bool _kalLaeuft = false;
   int _kalStart = 0;
+  String? _kalMeldung;
+  String? _kalOk;
+  final List<Vek> _kalProben = [];
 
   @override
   void initState() {
     super.initState();
-    // Die Sensorachsen gehören zum Gerät. Dreht sich die Anzeige, stimmen
-    // Links/Rechts und Vorne/Hinten nicht mehr mit dem Bildschirm überein.
+    // Die Messung hängt nicht an der Bildschirmdrehung. Das Layout bleibt im
+    // Hochformat; Lage und Seiten werden aus dem Sensor bestimmt und benannt.
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _sa = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 20)).listen((e) {
-      if (!_hatWerte) {
-        _x = e.x;
-        _y = e.y;
-        _z0 = e.z;
-        _hatWerte = true;
-      } else {
-        _x += _alpha * (e.x - _x);
-        _y += _alpha * (e.y - _y);
-        _z0 += _alpha * (e.z - _z0);
-      }
-      if (_kalibriert == false && _kalStart > 0) {
-        _kalProben.add((x: e.x, y: e.y, z: e.z));
-      }
-    }, onError: (_) {
+    _uhr.start();
+    _sa = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 10)).listen(_beschleunigung,
+        onError: (_) {
       if (mounted) {
         setState(() => _fehler = 'Beschleunigungssensor nicht verfügbar – dieses Handy liefert keine Messwerte.');
       }
     });
-    _uhr.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 40), (_) {
+    _sg = gyroscopeEventStream(samplingPeriod: const Duration(milliseconds: 10)).listen((e) {
+      _gx = e.x;
+      _gy = e.y;
+      _gz = e.z;
+    }, onError: (_) {
+      _gx = _gy = _gz = null; // ohne Gyroskop: nur Beschleunigungsglättung
+    });
+    _timer = Timer.periodic(const Duration(milliseconds: 33), (_) {
       if (!mounted) return;
-      if (_kalStart > 0 && _uhr.elapsedMilliseconds - _kalStart >= _kalibrierMs) {
-        _kalibrierungAbschliessen();
+      if (_kalLaeuft && _hatWerte) {
+        _kalProben.add((x: _filter.x, y: _filter.y, z: _filter.z));
+        if (_uhr.elapsedMilliseconds - _kalStart >= _kalibrierMs) _kalibrierungAbschliessen();
       }
       setState(() {});
     });
+  }
+
+  void _beschleunigung(AccelerometerEvent e) {
+    final jetzt = _uhr.elapsedMicroseconds;
+    final dt = _hatWerte ? (jetzt - _letzteUs) / 1e6 : 0.0;
+    _letzteUs = jetzt;
+    _filter.update(ax: e.x, ay: e.y, az: e.z, dt: dt, gx: _gx, gy: _gy, gz: _gz);
+    _hatWerte = true;
   }
 
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _sa?.cancel();
+    _sg?.cancel();
     _timer?.cancel();
     super.dispose();
   }
 
   void _kalibrierenStart() {
     _kalProben.clear();
-    _kalibriert = false;
     _kalMeldung = null;
-    _kalStart = _uhr.elapsedMilliseconds == 0 ? 1 : _uhr.elapsedMilliseconds;
+    _kalOk = null;
+    _kalLaeuft = true;
+    _kalStart = _uhr.elapsedMilliseconds;
     setState(() {});
   }
 
   void _kalibrierungAbschliessen() {
-    _kalStart = 0;
+    _kalLaeuft = false;
     final k = kalibriere(List.of(_kalProben));
     if (k == null) {
-      _kalMeldung = 'Kalibrierung nicht möglich: Handy mit dem Display nach oben auf eine Fläche legen.';
+      _kalMeldung = 'Kalibrierung nicht möglich: kein Sensorwert. Bitte wiederholen.';
     } else if (k.streuungGrad > kKalibrierMaxStreuung) {
       _kalMeldung = 'Das Handy wurde während der Kalibrierung bewegt. Bitte ruhig hinlegen und wiederholen.';
     } else {
-      _kal = k;
-      _kalibriert = true;
+      _kals[k.lage.schluessel] = k;
+      _kalOk = k.lage.beschreibung;
       _kalMeldung = null;
     }
   }
 
   void _zuruecksetzen() {
     setState(() {
-      _kal = null;
-      _kalibriert = false;
+      _kals.clear();
       _kalMeldung = null;
-      _kalStart = 0;
+      _kalOk = null;
+      _kalLaeuft = false;
     });
   }
 
@@ -120,14 +132,16 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
         title: const Text('Wasserwaage'),
         content: SingleChildScrollView(
           child: Text(
-            'Legen Sie das Handy mit dem Display nach oben ruhig auf das Bauteil. '
-            'Die Anzeige zeigt die aktuelle Neigung.\n\n'
-            'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. '
-            'Die Lage in dieser Zeit (ca. 2 Sekunden) gilt danach als 0,0°.\n\n'
-            'Neigung: Winkel gegen die Waagerechte.\nGefälle %: Höhenunterschied je 100 cm.\n'
+            'Legen Sie das Handy ruhig auf das Bauteil – flach, auf die Seite oder aufrecht an eine '
+            'Fläche. Die Anzeige erkennt die Lage selbst und zeigt die aktuelle Neigung.\n\n'
+            'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. Die Lage in '
+            'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die Lage, '
+            'in der sie gemacht wurde (z. B. flach mit Display oben). „Zurücksetzen“ löscht alle.\n\n'
+            'Neigung: Winkel gegen die Senkrechte der Lage.\nGefälle %: Höhenunterschied je 100 cm.\n'
             'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
-            'Die Blase wandert zur höheren Seite und stellt den ganzen Bereich von 0° bis 90° dar. '
-            'Kleine Neigungen sind darin vergrößert gezeichnet; die Zahlen sind unverändert.\n\n$_kHinweis',
+            'Die Blase wandert zur höheren Seite. Kleine Neigungen sind darin vergrößert gezeichnet; '
+            'die Zahlen sind unverändert. Die Werte werden mit dem Gyroskop geglättet, damit sie '
+            'nicht springen; im Ruhezustand entspricht der Wert genau der Messung.\n\n$_kHinweis',
           ),
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
@@ -138,18 +152,24 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final n = _hatWerte
-        ? berechneNeigung(_x, _y, _z0, roll0: _kal?.roll0 ?? 0, pitch0: _kal?.pitch0 ?? 0)
-        : null;
-    final kalibriertGerade = _kalStart > 0;
-    final eben = n != null && n.flach && n.gesamtGrad < 0.1;
+    Neigung? n0;
+    Kalibrierung? kal0;
+    if (_hatWerte) {
+      final lage = bestimmeLage(_filter.x, _filter.y, _filter.z);
+      kal0 = _kals[lage.schluessel];
+      n0 = berechneNeigung(_filter.x, _filter.y, _filter.z, lage: lage, a0: kal0?.a0 ?? 0, b0: kal0?.b0 ?? 0);
+    }
+    final Neigung? n = n0;
+    final Kalibrierung? kal = kal0;
+    final gueltig = n != null && n.gueltig;
+    final eben = n != null && n.gueltig && n.gesamtGrad < 0.1;
 
     String richtung() {
-      if (n == null || !n.flach) return '–';
+      if (n == null || !n.gueltig) return '–';
       final t = <String>[];
-      if (n.rollGrad.abs() >= 0.05) t.add(n.rollGrad > 0 ? 'rechts höher' : 'links höher');
-      if (n.pitchGrad.abs() >= 0.05) t.add(n.pitchGrad > 0 ? 'vorne höher' : 'hinten höher');
-      return t.isEmpty ? 'waagerecht' : t.join(', ');
+      if (_z(n.aGrad) != '0,00') t.add('${n.lage.seite(n.lage.a, n.aGrad > 0)} höher');
+      if (_z(n.bGrad) != '0,00') t.add('${n.lage.seite(n.lage.b, n.bGrad > 0)} höher');
+      return t.isEmpty ? 'Waagerecht' : t.join('  ·  ');
     }
 
     return Scaffold(
@@ -186,54 +206,35 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
               child: Padding(padding: const EdgeInsets.all(14), child: Text(_fehler!)),
             )
           else ...[
+            _Anzeige(n: n, kalibriert: kal != null, richtung: richtung()),
+            const SizedBox(height: 12),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 child: Column(children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(n == null ? '–' : '${_z(n.gesamtGrad)}°',
-                        style: TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: scheme.primary)),
-                  ]),
-                  Text('Neigung', style: TextStyle(color: scheme.onSurfaceVariant)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 280,
-                    child: CustomPaint(
-                      painter: _LibellePainter(
-                        neigung: n,
-                        aktiv: n?.flach == true,
-                        eben: eben,
-                        primary: scheme.primary,
-                        linie: scheme.outline,
-                        text: scheme.onSurfaceVariant,
-                        grund: scheme.surfaceContainerHighest,
-                      ),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    n == null
-                        ? 'Warte auf Sensor …'
-                        : (n.flach ? richtung() : 'Handy mit dem Display nach oben flach hinlegen'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  LayoutBuilder(
+                    builder: (context, c) {
+                      final h = (c.maxWidth - 52) + 112;
+                      return SizedBox(
+                        height: h,
+                        child: CustomPaint(
+                          size: Size(c.maxWidth, h),
+                          painter: _LibellePainter(
+                            neigung: n,
+                            aktiv: gueltig,
+                            eben: eben,
+                            primary: scheme.primary,
+                            linie: scheme.outline,
+                            text: scheme.onSurfaceVariant,
+                            grund: scheme.surfaceContainerHighest,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ]),
               ),
             ),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _Kachel('Gefälle', n == null ? '–' : '${_z(n.prozent)} %')),
-              const SizedBox(width: 8),
-              Expanded(child: _Kachel('Gefälle', n == null ? '–' : '${_z(n.mmProM)} mm/m')),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: _Kachel('Winkel X (links/rechts)', n == null ? '–' : '${_z(n.rollGrad, 2)}°')),
-              const SizedBox(width: 8),
-              Expanded(child: _Kachel('Winkel Y (vorne/hinten)', n == null ? '–' : '${_z(n.pitchGrad, 2)}°')),
-            ]),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -245,20 +246,22 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
                     const Text('Neigung gemessen', style: TextStyle(fontWeight: FontWeight.bold)),
                   ]),
                   const SizedBox(height: 10),
-                  if (kalibriertGerade)
+                  if (_kalLaeuft)
                     Row(children: [
                       const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                       const SizedBox(width: 10),
                       const Expanded(child: Text('Kalibrierung läuft – Handy ruhig halten …')),
                     ])
-                  else if (_kalibriert)
-                    Row(children: [
+                  else if (_kalOk != null)
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Icon(Icons.verified_outlined, color: scheme.primary, size: 20),
                       const SizedBox(width: 8),
-                      const Text('Kalibrierung abgeschlossen'),
+                      Expanded(child: Text('Kalibrierung abgeschlossen\n($_kalOk)')),
                     ])
+                  else if (kal != null)
+                    const Text('Kalibriert für diese Lage')
                   else
-                    Text('Nicht kalibriert', style: TextStyle(color: scheme.onSurfaceVariant)),
+                    Text('Nicht kalibriert (für diese Lage)', style: TextStyle(color: scheme.onSurfaceVariant)),
                   if (_kalMeldung != null) ...[
                     const SizedBox(height: 8),
                     Text(_kalMeldung!, style: TextStyle(color: scheme.error)),
@@ -267,15 +270,16 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
                   Row(children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: (_hatWerte && !kalibriertGerade) ? _kalibrierenStart : null,
+                        onPressed: (_hatWerte && !_kalLaeuft) ? _kalibrierenStart : null,
                         icon: const Icon(Icons.tune),
                         label: const Text('Kalibrieren'),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: (_kal != null && !kalibriertGerade) ? _zuruecksetzen : null,
-                      child: const Text('Zurücksetzen'),
+                    OutlinedButton.icon(
+                      onPressed: (_kals.isNotEmpty && !_kalLaeuft) ? _zuruecksetzen : null,
+                      icon: const Icon(Icons.restart_alt),
+                      label: const Text('Reset'),
                     ),
                   ]),
                 ]),
@@ -305,30 +309,91 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   }
 }
 
-class _Kachel extends StatelessWidget {
-  const _Kachel(this.titel, this.wert);
-  final String titel;
-  final String wert;
+/// Große digitale Anzeige im Stil eines Messgeräts.
+class _Anzeige extends StatelessWidget {
+  const _Anzeige({required this.n, required this.kalibriert, required this.richtung});
+
+  final Neigung? n;
+  final bool kalibriert;
+  final String richtung;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(titel, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text(wert, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+    final neigung = n;
+    final ok = neigung != null && neigung.gueltig;
+    const ziffern = [FontFeature.tabularFigures()];
+    Widget kachel(String titel, String wert) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(titel, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              const SizedBox(height: 2),
+              Text(wert,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white, fontFeatures: ziffern)),
+            ]),
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(16)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(
+            child: Text(
+              neigung == null ? 'Warte auf Sensor …' : neigung.lage.beschreibung,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+          if (kalibriert)
+            const Chip(
+              label: Text('kalibriert', style: TextStyle(fontSize: 12)),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
         ]),
-      ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            ok ? '${_z(neigung!.gesamtGrad)}°' : '–',
+            style: const TextStyle(
+                fontSize: 64, fontWeight: FontWeight.w800, color: Colors.white, fontFeatures: ziffern, height: 1.05),
+          ),
+        ),
+        const Center(child: Text('Neigung', style: TextStyle(color: Colors.white70))),
+        const SizedBox(height: 4),
+        Center(
+          child: Text(
+            richtung,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          kachel('Gefälle', ok ? '${_z(neigung!.prozent)} %' : '–'),
+          const SizedBox(width: 8),
+          kachel('Gefälle', ok ? '${_z(neigung!.mmProM, 1)} mm/m' : '–'),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          kachel(neigung?.lage.titelA ?? 'Achse A', ok ? '${_z(neigung!.aGrad)}°' : '–'),
+          const SizedBox(width: 8),
+          kachel(neigung?.lage.titelB ?? 'Achse B', ok ? '${_z(neigung!.bGrad)}°' : '–'),
+        ]),
+      ]),
     );
   }
 }
 
-/// Libelle: Kreis mit Blase, dazu waagerechte und senkrechte Leiste.
-/// Die Blase wandert zur höheren Seite. Grün nur als Darstellung bei < 0,1°.
+/// Libelle: Kreis mit Blase und Skalenringen, dazu eine waagerechte und eine
+/// senkrechte Leiste. Die Blase wandert zur höheren Seite und kommt aus
+/// derselben Rechnung wie die Zahlen. Grün nur als Darstellung bei < 0,1°.
 class _LibellePainter extends CustomPainter {
   _LibellePainter({
     required this.neigung,
@@ -344,9 +409,11 @@ class _LibellePainter extends CustomPainter {
   final bool aktiv, eben;
   final Color primary, linie, text, grund;
 
-  void _beschrifte(Canvas c, String s, Offset mitte) {
+  static const _ringe = [1.0, 5.0, 15.0, 30.0, 45.0];
+
+  void _beschrifte(Canvas c, String s, Offset mitte, {double size = 12, FontWeight w = FontWeight.w400}) {
     final tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(fontSize: 12, color: text)),
+      text: TextSpan(text: s, style: TextStyle(fontSize: size, color: text, fontWeight: w)),
       textDirection: TextDirection.ltr,
     )..layout();
     tp.paint(c, mitte - Offset(tp.width / 2, tp.height / 2));
@@ -355,79 +422,91 @@ class _LibellePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final farbe = !aktiv ? linie : (eben ? const Color(0xFF2E7D32) : primary);
-    final stroke = Paint()
+    final duenn = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1
+      ..color = linie.withValues(alpha: 0.6);
+    final stark = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
       ..color = linie;
 
-    // Kreis in der Mitte, Platz links/rechts für Beschriftung, unten für Leiste.
-    const rand = 70.0;
-    final r = math.min(size.width - 2 * rand, size.height - 76) / 2;
-    final mitte = Offset(size.width / 2, r + 20);
+    final n = neigung;
+    final lage = n?.lage ?? const Lage(Achse.z, true);
+
+    const links = 12.0, rechtsPlatz = 40.0, oben = 26.0;
+    final r = (size.width - links - rechtsPlatz) / 2;
+    final br = r * 0.11; // Blasenradius
+    final skalaR = r - br; // Radius, bei dem die größte Neigung der Lage liegt
+    final mitte = Offset(links + r, oben + r);
+
+    // Kreis, Skalenringe, Fadenkreuz.
     canvas.drawCircle(mitte, r, Paint()..color = grund);
-    canvas.drawCircle(mitte, r, stroke);
-    canvas.drawCircle(mitte, r * 2 / 3, stroke..strokeWidth = 1);
-    canvas.drawCircle(mitte, r / 3, stroke);
-    canvas.drawLine(mitte - Offset(r, 0), mitte + Offset(r, 0), stroke);
-    canvas.drawLine(mitte - Offset(0, r), mitte + Offset(0, r), stroke);
+    canvas.drawCircle(mitte, r, stark);
+    for (final a in _ringe) {
+      final rr = skalaR * anzeigeSkala(a);
+      canvas.drawCircle(mitte, rr, duenn);
+      _beschrifte(canvas, '${a.toInt()}°', mitte + Offset(rr * 0.7071 + 9, -rr * 0.7071 - 1), size: 10);
+    }
+    canvas.drawLine(mitte - Offset(r, 0), mitte + Offset(r, 0), duenn);
+    canvas.drawLine(mitte - Offset(0, r), mitte + Offset(0, r), duenn);
+    canvas.drawCircle(mitte, 4, stark); // klare Mitte
 
-    final roll = neigung?.rollGrad ?? 0, pitch = neigung?.pitchGrad ?? 0;
-    final pos = neigung == null ? (dx: 0.0, dy: 0.0) : blasenPosition(neigung!);
-    final dx = pos.dx, dy = pos.dy;
-    final br = r * 0.14;
-    final bm = mitte + Offset(dx, dy) * (r - br);
-    canvas.drawCircle(bm, br, Paint()..color = farbe.withValues(alpha: 0.85));
-    canvas.drawCircle(bm, br, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = farbe);
+    // Blase.
+    final pos = (n == null || !n.gueltig) ? (dx: 0.0, dy: 0.0) : blasenPosition(n);
+    final bm = mitte + Offset(pos.dx, pos.dy) * skalaR;
+    canvas.drawCircle(bm, br, Paint()..color = farbe.withValues(alpha: 0.8));
+    canvas.drawCircle(
+        bm,
+        br,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = farbe);
+    canvas.drawCircle(bm - Offset(br * 0.3, br * 0.3), br * 0.25, Paint()..color = Colors.white.withValues(alpha: 0.6));
 
-    _beschrifte(canvas, '← Links', Offset(rand / 2 + 2, mitte.dy));
-    _beschrifte(canvas, 'Rechts →', Offset(size.width - rand / 2 - 8, mitte.dy));
-    _beschrifte(canvas, '↑ Vorne', Offset(mitte.dx, mitte.dy - r - 10));
-    _beschrifte(canvas, '↓ Hinten', Offset(mitte.dx, mitte.dy + r + 10));
+    // Beschriftung oben/unten (b-Achse).
+    _beschrifte(canvas, '↑ ${lage.seite(lage.b, true)}', Offset(mitte.dx, oben - 12), w: FontWeight.w600);
+    _beschrifte(canvas, '↓ ${lage.seite(lage.b, false)}', Offset(mitte.dx, mitte.dy + r + 12), w: FontWeight.w600);
 
-    // Waagerechte Leiste unten.
-    final ly = size.height - 18;
-    final lb = size.width - 2 * rand;
-    final l0 = rand;
+    final aGrad = n?.aGrad ?? 0, bGrad = n?.bGrad ?? 0;
+
+    // Waagerechte Leiste (a-Achse) unter dem Kreis.
+    final ly = mitte.dy + r + 44;
+    final halb = r;
     final leiste = RRect.fromRectAndRadius(
-        Rect.fromLTWH(l0, ly - 7, lb, 14), const Radius.circular(7));
+        Rect.fromLTWH(mitte.dx - halb, ly - 8, 2 * halb, 16), const Radius.circular(8));
     canvas.drawRRect(leiste, Paint()..color = grund);
-    canvas.drawRRect(leiste, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = linie);
-    for (var i = -5; i <= 5; i++) {
-      final tx = l0 + lb / 2 + i * (lb / 2 - 10) / 5;
-      canvas.drawLine(Offset(tx, ly - (i == 0 ? 7 : 4)), Offset(tx, ly + (i == 0 ? 7 : 4)),
-          Paint()..color = linie..strokeWidth = i == 0 ? 2 : 1);
+    canvas.drawRRect(leiste, stark);
+    final halbNutz = halb - 12;
+    for (final a in _ringe) {
+      for (final s in [-1, 1]) {
+        final tx = mitte.dx + s * anzeigeSkala(a) * halbNutz;
+        canvas.drawLine(Offset(tx, ly - 4), Offset(tx, ly + 4), duenn);
+      }
     }
-    final bx = l0 + lb / 2 + leistenPosition(roll) * (lb / 2 - 10);
-    canvas.drawCircle(Offset(bx, ly), 9, Paint()..color = farbe);
-    _beschrifte(canvas, '← Links  ─  ●  ─  Rechts →', Offset(size.width / 2, ly + 14));
+    canvas.drawLine(Offset(mitte.dx, ly - 8), Offset(mitte.dx, ly + 8), stark);
+    canvas.drawCircle(Offset(mitte.dx + leistenPosition(aGrad) * halbNutz, ly), 10, Paint()..color = farbe);
+    _beschrifte(canvas, '← ${lage.seite(lage.a, false)}', Offset(mitte.dx - halb + 40, ly + 24), w: FontWeight.w600);
+    _beschrifte(canvas, '${lage.seite(lage.a, true)} →', Offset(mitte.dx + halb - 40, ly + 24), w: FontWeight.w600);
 
-    // Senkrechte Leiste rechts außen.
-    final vx = size.width - 10;
-    final vt = mitte.dy - r * 0.8;
-    final vh = r * 1.6;
+    // Senkrechte Leiste (b-Achse) rechts neben dem Kreis.
+    final vx = size.width - 14;
+    final vh = skalaR;
     final vleiste = RRect.fromRectAndRadius(
-        Rect.fromLTWH(vx - 7, vt, 14, vh), const Radius.circular(7));
+        Rect.fromLTWH(vx - 8, mitte.dy - r, 16, 2 * r), const Radius.circular(8));
     canvas.drawRRect(vleiste, Paint()..color = grund);
-    canvas.drawRRect(vleiste, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = linie);
-    for (var i = -5; i <= 5; i++) {
-      final ty = vt + vh / 2 - i * (vh / 2 - 10) / 5;
-      canvas.drawLine(Offset(vx - (i == 0 ? 7 : 4), ty), Offset(vx + (i == 0 ? 7 : 4), ty),
-          Paint()..color = linie..strokeWidth = i == 0 ? 2 : 1);
+    canvas.drawRRect(vleiste, stark);
+    for (final a in _ringe) {
+      for (final s in [-1, 1]) {
+        final ty = mitte.dy - s * anzeigeSkala(a) * vh;
+        canvas.drawLine(Offset(vx - 4, ty), Offset(vx + 4, ty), duenn);
+      }
     }
-    final by = vt + vh / 2 - leistenPosition(pitch) * (vh / 2 - 10);
-    canvas.drawCircle(Offset(vx, by), 9, Paint()..color = farbe);
+    canvas.drawLine(Offset(vx - 8, mitte.dy), Offset(vx + 8, mitte.dy), stark);
+    canvas.drawCircle(Offset(vx, mitte.dy - leistenPosition(bGrad) * vh), 10, Paint()..color = farbe);
   }
 
   @override
-  bool shouldRepaint(_LibellePainter o) =>
-      o.neigung != neigung || o.aktiv != aktiv || o.eben != eben;
+  bool shouldRepaint(_LibellePainter o) => true;
 }
