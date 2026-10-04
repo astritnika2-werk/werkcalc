@@ -13,8 +13,6 @@ const _kHinweis =
     'Die Messung erfolgt mit den Bewegungssensoren des Smartphones. '
     'Die Genauigkeit hängt vom Gerät, der Positionierung und der Kalibrierung ab.';
 
-/// Anzeigebereich der Libelle (nur Darstellung, keine Bewertung).
-const double _skalaGrad = 5;
 
 /// Wasserwaage: Neigung aus dem Beschleunigungssensor (mit Schwerkraft).
 class WasserwaagePage extends StatefulWidget {
@@ -67,7 +65,7 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
       }
     });
     _uhr.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    _timer = Timer.periodic(const Duration(milliseconds: 40), (_) {
       if (!mounted) return;
       if (_kalStart > 0 && _uhr.elapsedMilliseconds - _kalStart >= _kalibrierMs) {
         _kalibrierungAbschliessen();
@@ -127,7 +125,9 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
             'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. '
             'Die Lage in dieser Zeit (ca. 2 Sekunden) gilt danach als 0,0°.\n\n'
             'Neigung: Winkel gegen die Waagerechte.\nGefälle %: Höhenunterschied je 100 cm.\n'
-            'Gefälle mm/m: Höhenunterschied je Meter.\n\n$_kHinweis',
+            'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
+            'Die Blase wandert zur höheren Seite und stellt den ganzen Bereich von 0° bis 90° dar. '
+            'Kleine Neigungen sind darin vergrößert gezeichnet; die Zahlen sind unverändert.\n\n$_kHinweis',
           ),
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
@@ -200,8 +200,7 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
                     height: 280,
                     child: CustomPaint(
                       painter: _LibellePainter(
-                        roll: n?.flach == true ? n!.rollGrad : 0,
-                        pitch: n?.flach == true ? n!.pitchGrad : 0,
+                        neigung: n,
                         aktiv: n?.flach == true,
                         eben: eben,
                         primary: scheme.primary,
@@ -332,8 +331,7 @@ class _Kachel extends StatelessWidget {
 /// Die Blase wandert zur höheren Seite. Grün nur als Darstellung bei < 0,1°.
 class _LibellePainter extends CustomPainter {
   _LibellePainter({
-    required this.roll,
-    required this.pitch,
+    required this.neigung,
     required this.aktiv,
     required this.eben,
     required this.primary,
@@ -342,7 +340,7 @@ class _LibellePainter extends CustomPainter {
     required this.grund,
   });
 
-  final double roll, pitch;
+  final Neigung? neigung;
   final bool aktiv, eben;
   final Color primary, linie, text, grund;
 
@@ -373,8 +371,8 @@ class _LibellePainter extends CustomPainter {
     canvas.drawLine(mitte - Offset(r, 0), mitte + Offset(r, 0), stroke);
     canvas.drawLine(mitte - Offset(0, r), mitte + Offset(0, r), stroke);
 
-    double lim(double v) => (v / _skalaGrad).clamp(-1.0, 1.0);
-    final pos = blasenPosition(roll, pitch, skalaGrad: _skalaGrad);
+    final roll = neigung?.rollGrad ?? 0, pitch = neigung?.pitchGrad ?? 0;
+    final pos = neigung == null ? (dx: 0.0, dy: 0.0) : blasenPosition(neigung!);
     final dx = pos.dx, dy = pos.dy;
     final br = r * 0.14;
     final bm = mitte + Offset(dx, dy) * (r - br);
@@ -405,7 +403,7 @@ class _LibellePainter extends CustomPainter {
       canvas.drawLine(Offset(tx, ly - (i == 0 ? 7 : 4)), Offset(tx, ly + (i == 0 ? 7 : 4)),
           Paint()..color = linie..strokeWidth = i == 0 ? 2 : 1);
     }
-    final bx = l0 + lb / 2 + lim(roll) * (lb / 2 - 10);
+    final bx = l0 + lb / 2 + leistenPosition(roll) * (lb / 2 - 10);
     canvas.drawCircle(Offset(bx, ly), 9, Paint()..color = farbe);
     _beschrifte(canvas, '← Links  ─  ●  ─  Rechts →', Offset(size.width / 2, ly + 14));
 
@@ -425,11 +423,11 @@ class _LibellePainter extends CustomPainter {
       canvas.drawLine(Offset(vx - (i == 0 ? 7 : 4), ty), Offset(vx + (i == 0 ? 7 : 4), ty),
           Paint()..color = linie..strokeWidth = i == 0 ? 2 : 1);
     }
-    final by = vt + vh / 2 - lim(pitch) * (vh / 2 - 10);
+    final by = vt + vh / 2 - leistenPosition(pitch) * (vh / 2 - 10);
     canvas.drawCircle(Offset(vx, by), 9, Paint()..color = farbe);
   }
 
   @override
   bool shouldRepaint(_LibellePainter o) =>
-      o.roll != roll || o.pitch != pitch || o.aktiv != aktiv || o.eben != eben;
+      o.neigung != neigung || o.aktiv != aktiv || o.eben != eben;
 }

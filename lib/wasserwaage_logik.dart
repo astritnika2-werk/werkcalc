@@ -12,7 +12,14 @@ class Neigung {
     required this.prozent,
     required this.mmProM,
     required this.flach,
+    this.sx = 0,
+    this.sy = 0,
   });
+
+  /// Steigungs-Vektor der Ebene (tan der kalibrierten Winkel): sx positiv =
+  /// rechts höher, sy positiv = vorne höher. Aus ihm folgen Zahlen UND Blase.
+  final double sx;
+  final double sy;
 
   /// Links/Rechts in Grad (positiv: rechts höher), nach Abzug der Kalibrierung.
   final double rollGrad;
@@ -25,7 +32,7 @@ class Neigung {
   final double prozent; // Gefälle in %
   final double mmProM; // Gefälle in mm/m
 
-  /// false, wenn das Handy nicht flach liegt (Display nach unten oder stark gekippt).
+  /// false, wenn das Display nach unten zeigt (z ≤ 0): dann gibt es keine Neigung.
   final bool flach;
 }
 
@@ -52,7 +59,9 @@ Neigung berechneNeigung(double x, double y, double z, {double roll0 = 0, double 
     gesamtGrad: gesamt,
     prozent: steigung * 100,
     mmProM: steigung * 1000,
-    flach: gesamt < 60,
+    flach: true,
+    sx: sx,
+    sy: sy,
   );
 }
 
@@ -87,19 +96,23 @@ Kalibrierung? kalibriere(List<({double x, double y, double z})> proben) {
   return Kalibrierung(mw(rolls), mw(pitches), math.max(sd(rolls), sd(pitches)));
 }
 
-/// Lage der Blase im Anzeigekreis als Einheitsvektor-Anteil (−1…1).
-/// Die Blase wandert wie bei einer echten Libelle zur HÖHEREN Seite:
-///  roll > 0 (rechts höher)  → dx > 0 (nach rechts auf dem Display)
-///  pitch > 0 (vorne höher)  → dy < 0 (nach oben auf dem Display, y zeigt nach unten)
-/// [skalaGrad] ist nur der Darstellungsbereich (Vollausschlag), keine Bewertung.
-({double dx, double dy}) blasenPosition(double rollGrad, double pitchGrad, {double skalaGrad = 5}) {
-  double lim(double v) => (v / skalaGrad).clamp(-1.0, 1.0);
-  var dx = lim(rollGrad);
-  var dy = -lim(pitchGrad);
-  final len = math.sqrt(dx * dx + dy * dy);
-  if (len > 1) {
-    dx /= len;
-    dy /= len;
-  }
-  return (dx: dx, dy: dy);
+/// Darstellung einer Neigung (Grad) auf einer Anzeigeachse, 0…1.
+/// Rein geometrisch: 0° → 0, 90° (senkrecht) → 1, dazwischen Wurzel-Skala,
+/// damit kleine Neigungen sichtbar sind und der ganze Bereich 0…90°
+/// durchgehend (ohne Anschlag) dargestellt wird. Keine Schwelle, kein Anschlag.
+double anzeigeSkala(double grad) => math.sqrt((grad.abs() / 90).clamp(0.0, 1.0));
+
+/// Lage der Blase im Kreis (−1…1; Display: x rechts, y nach unten).
+/// Kommt aus derselben Rechnung wie die Zahlen (Steigungsvektor sx, sy):
+/// Richtung = Richtung der höheren Seite (wie bei einer echten Libelle),
+/// Abstand = anzeigeSkala(Gesamtneigung).
+///  rechts höher → dx > 0, vorne höher → dy < 0 (oben).
+({double dx, double dy}) blasenPosition(Neigung n) {
+  final len = math.sqrt(n.sx * n.sx + n.sy * n.sy);
+  if (len == 0) return (dx: 0, dy: 0);
+  final f = anzeigeSkala(n.gesamtGrad);
+  return (dx: n.sx / len * f, dy: -n.sy / len * f);
 }
+
+/// Anzeige einer Achsen-Neigung (Grad) auf einer Leiste, −1…1 (Vorzeichen bleibt).
+double leistenPosition(double grad) => grad.isNegative ? -anzeigeSkala(grad) : anzeigeSkala(grad);

@@ -55,30 +55,60 @@ void main() {
   });
 
   group('Blasenposition (Display: x rechts, y nach unten)', () {
+    Neigung nz(double x, double y) {
+      final v = vec(x, y);
+      return berechneNeigung(v.x, v.y, v.z);
+    }
+
     test('links höher → Blase nach links', () {
-      final p = blasenPosition(-3, 0);
+      final p = blasenPosition(nz(-3, 0));
       expect(p.dx, lessThan(0));
-      expect(p.dy, 0);
+      expect(p.dy, closeTo(0, 1e-9));
     });
     test('rechts höher → Blase nach rechts', () {
-      expect(blasenPosition(3, 0).dx, greaterThan(0));
+      expect(blasenPosition(nz(3, 0)).dx, greaterThan(0));
     });
     test('vorne höher → Blase nach oben', () {
-      final p = blasenPosition(0, 3);
+      final p = blasenPosition(nz(0, 3));
       expect(p.dy, lessThan(0));
-      expect(p.dx, 0);
+      expect(p.dx, closeTo(0, 1e-9));
     });
     test('hinten höher → Blase nach unten', () {
-      expect(blasenPosition(0, -3).dy, greaterThan(0));
+      expect(blasenPosition(nz(0, -3)).dy, greaterThan(0));
     });
-    test('Sensor: linke Kante angehoben → Blase links', () {
-      // linke Kante hoch ⇒ Beschleunigung x negativ
+    test('Diagonale: links+vorne höher → Blase links oben', () {
+      final p = blasenPosition(nz(-4, 4));
+      expect(p.dx, lessThan(0));
+      expect(p.dy, lessThan(0));
+    });
+    test('Sensor: linke Kante angehoben (x negativ) → Blase links', () {
       final n = berechneNeigung(-0.5, 0, 9.8);
-      expect(blasenPosition(n.rollGrad, n.pitchGrad).dx, lessThan(0));
+      expect(blasenPosition(n).dx, lessThan(0));
     });
-    test('Sensor: Vorderkante angehoben → Blase oben', () {
+    test('Sensor: Vorderkante angehoben (y positiv) → Blase oben', () {
       final n = berechneNeigung(0, 0.5, 9.8);
-      expect(blasenPosition(n.rollGrad, n.pitchGrad).dy, lessThan(0));
+      expect(blasenPosition(n).dy, lessThan(0));
+    });
+    test('kontinuierlich und streng wachsend über 0…80° (kein Anschlag)', () {
+      var last = 0.0;
+      for (var g = 1; g <= 80; g++) {
+        final x = blasenPosition(nz(g.toDouble(), 0)).dx;
+        expect(x, greaterThan(last), reason: 'bei $g°');
+        last = x;
+      }
+      expect(last, lessThan(1.0));
+    });
+    test('Blase im Kreis, Gesamtneigung wie die Zahlen', () {
+      final n = nz(20, 30);
+      final p = blasenPosition(n);
+      expect(math.sqrt(p.dx * p.dx + p.dy * p.dy), closeTo(anzeigeSkala(n.gesamtGrad), 1e-9));
+    });
+    test('Display unten: keine Neigung, Blase mittig', () {
+      final n = berechneNeigung(0, 0, -9.81);
+      expect(n.flach, false);
+      final p = blasenPosition(n);
+      expect(p.dx, 0);
+      expect(p.dy, 0);
     });
   });
 }
