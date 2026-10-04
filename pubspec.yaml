@@ -32,6 +32,7 @@ flutter:
     - assets/brand/logo_mark_color.png
     - assets/katalog/zusatz.json
     - assets/produkte/
+    - assets/pumpen/
 
 # App-Icon: nach "flutter create" einmal ausführen:  dart run flutter_launcher_icons
 # Die Bilder erzeugt tools/make_brand.py.

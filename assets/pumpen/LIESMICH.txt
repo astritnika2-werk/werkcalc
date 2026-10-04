@@ -1,0 +1,22 @@
+Geprüfte Herstellerdaten für die Pumpenprüfung (pumpen.json)
+============================================================
+Aktuell leer: WerkCalc liefert KEINE Pumpendaten mit, solange sie nicht aus
+einem Datenblatt des Herstellers belegt sind.
+
+Eintrag (Beispiel-Struktur, Werte NICHT erfinden):
+{
+  "id": "hersteller-modell-artikelnummer",
+  "hersteller": "…",
+  "modell": "…",
+  "artikelnummer": "…",
+  "anschluss": "…",
+  "baulaenge": "…",
+  "quelle": "Datenblatt <Dokument, Seite, Datum>",   // Pflicht
+  "kurven": [
+    { "name": "Max. Kennlinie", "qEinheit": "m3h", "hEinheit": "m",
+      "punkte": [[Q, H], [Q, H], ...] }               // mind. 3 Punkte, Q aufsteigend, H fallend
+  ]
+}
+qEinheit: m3h | lmin | ls     hEinheit: m | kpa
+Einträge ohne "quelle" oder ohne brauchbare Kennlinie werden ignoriert.
+Rechte: Kennlinien nur übernehmen, wenn die Nutzung erlaubt ist (Herstellerfreigabe/Lizenz).

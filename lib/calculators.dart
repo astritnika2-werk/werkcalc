@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'calc_page.dart';
 import 'logic.dart';
 import 'materialkosten_page.dart';
+import 'pumpen_pruefung_page.dart';
 import 'vorschlag.dart';
 
 /// Ein Eintrag in der Startseite. [builder] == null bedeutet "bald verfügbar".
@@ -39,6 +40,10 @@ Widget _pumpePage({
         'und Widerstände von Wärmeerzeuger, Ventilen und Mischern laut Herstellerangabe.',
     requireAll: false,
     richtwert: true,
+    weiter: CalcWeiter('Weiter: Pumpe prüfen (Kennlinie)', (v) {
+      final a = _pumpeAus(v);
+      return PumpenPruefungPage(q: a?.volumenstromM3h, h: a?.foerderhoeheM);
+    }),
     fields: [
       CalcField('Volumenstrom (optional)', 'm³/h', initial: volumenstrom),
       const CalcField('Heizleistung', 'kW'),
@@ -108,8 +113,8 @@ Widget _pumpePage({
           ),
         if (a.typ != null)
           const ResultRow(
-            'Keine exakte Pumpenwahl: Q und H müssen mit der Q/H-Kennlinie der '
-            'konkreten Herstellerpumpe verglichen werden (keine Kennlinie hinterlegt).',
+            'Richtwert, keine exakte Pumpenwahl. Für die echte Prüfung Q und H mit der '
+            'Q/H-Kennlinie der konkreten Pumpe vergleichen: „Weiter: Pumpe prüfen“.',
             '',
           ),
         if (a.dn != null)
@@ -415,6 +420,11 @@ final List<CalcDef> calculators = [
     'Pumpe wählen',
     Icons.autorenew,
     () => _pumpePage(),
+  ),
+  CalcDef(
+    'Pumpe prüfen',
+    Icons.fact_check,
+    () => const PumpenPruefungPage(),
   ),
   CalcDef(
     'Liter / m³',
