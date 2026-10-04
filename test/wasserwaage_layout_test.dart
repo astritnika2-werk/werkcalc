@@ -207,6 +207,7 @@ void main() {
         expect(find.text('Automatisch umschalten'), findsOneWidget);
         await t.tap(find.byType(Switch));
         expect(auto, false);
+        await t.scrollUntilVisible(find.byKey(const Key('modus_linieRechts')), 100);
         await t.ensureVisible(find.byKey(const Key('modus_linieRechts')));
         await t.pumpAndSettle();
         await t.tap(find.byKey(const Key('modus_linieRechts')));
