@@ -314,10 +314,11 @@ class PumpenAuslegung {
 }
 
 /// Volumenstrom in m³/h aus Heizleistung (kW) und Spreizung ΔT (K).
+/// Übliche Handwerker-Formel: V̇ = Q / (1,163 · ΔT) mit 1,163 kWh/(m³·K)
+/// (Wasser, c ≈ 4,187 kJ/(kg·K), ρ ≈ 1000 kg/m³). [temperaturC] bleibt für
+/// die Aufrufer erhalten, beeinflusst diese Richtwert-Formel aber nicht.
 double volumenstromAusLeistung(double kw, double deltaTK, {double temperaturC = 60}) {
-  final rho = wasserEigenschaften(temperaturC).dichte;
-  const cKJkgK = 4.19;
-  return kw * 3600 / (cKJkgK * rho * deltaTK);
+  return kw / (1.163 * deltaTK);
 }
 
 /// Richtwert für die Pumpenauswahl. Rohrlänge = Vor- + Rücklauf zusammen.

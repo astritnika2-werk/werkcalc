@@ -80,11 +80,11 @@ Widget _pumpePage({
         ResultRow('Druckverlust Rohrnetz', '${fmt(a.dpRohrnetzPa / 100, digits: 0)} mbar'),
         ResultRow('Erforderliche Förderhöhe', '${fmt(a.foerderhoeheM, digits: 2)} m',
             highlight: true),
-        ResultRow('Max. Förderhöhe der Pumpe ≥',
-            '${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+        ResultRow('Auslegungsreserve (${fmt(kPumpenReserve, digits: 1)}×)',
+            '${fmt(a.foerderhoeheM * kPumpenReserve, digits: 2)} m'),
         if (a.typ != null && a.typMin != null && a.typMax != null)
           ResultRow(
-            'Empfohlener Bereich',
+            'Empfohlener Bereich (Richtwert)',
             a.typMin == a.typMax
                 ? 'Typ ${a.typ}'
                 : (a.typMin == a.typ
@@ -96,15 +96,24 @@ Widget _pumpePage({
           ResultRow('Beste Wahl (Richtwert)', 'Typ ${a.typ}'),
         if (a.typ != null)
           ResultRow(
-            'Warum: Bei ${fmt(a.foerderhoeheM, digits: 2)} m Förderhöhe soll die '
-            'Pumpe mind. ${fmt(a.foerderhoeheM * kPumpenReserveMin, digits: 1)} m '
-            '(knapp) bis ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m '
-            '(empfohlen) Maximalförderhöhe haben. Die größere Pumpe gibt Reserve '
-            'bei späterem Umbau, regelt aber im Teillastbereich weniger genau.',
+            'Warum (Richtwert): Betriebspunkt Q = ${fmt(a.volumenstromM3h, digits: 2)} m³/h, '
+            'H = ${fmt(a.foerderhoeheM, digits: 2)} m. Mit Auslegungsreserve '
+            '${fmt(kPumpenReserveMin, digits: 1)}× bis ${fmt(kPumpenReserve, digits: 1)}× '
+            '(${fmt(a.foerderhoeheM * kPumpenReserveMin, digits: 2)}–'
+            '${fmt(a.foerderhoeheM * kPumpenReserve, digits: 2)} m) passt nach der '
+            'üblichen Typbezeichnung (z. B. 25-40 ≈ max. 4 m) dieser Bereich. '
+            'Die größere Pumpe gibt Reserve bei späterem Umbau, regelt aber im '
+            'Teillastbereich weniger genau.',
+            '',
+          ),
+        if (a.typ != null)
+          const ResultRow(
+            'Keine exakte Pumpenwahl: Q und H müssen mit der Q/H-Kennlinie der '
+            'konkreten Herstellerpumpe verglichen werden (keine Kennlinie hinterlegt).',
             '',
           ),
         if (a.dn != null)
-          ResultRow('Anschluss', 'DN ${a.dn} · G ${kPumpenGewinde[a.dn]}'),
+          ResultRow('Anschluss (üblich)', 'DN ${a.dn} · G ${kPumpenGewinde[a.dn]}'),
         if (a.hinweis != null) ResultRow(a.hinweis!, ''),
       ];
       return rows;
@@ -115,12 +124,12 @@ Widget _pumpePage({
       final g = kPumpenGewinde[a.dn]!;
       return [
         Vorschlag('Umwälzpumpe Hocheffizienz ${a.typ}', 1,
-            'Richtwert: DN ${a.dn}, Förderhöhe ≥ ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+            'Richtwert: DN ${a.dn}, Auslegungsreserve ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 2)} m; Kennlinie des Herstellers prüfen'),
         if (a.typMax != null && a.typMax != a.typ)
           Vorschlag('Umwälzpumpe Hocheffizienz ${a.typMax}', 1,
               'Alternative mit mehr Reserve (statt, nicht zusätzlich)'),
-        Vorschlag('Pumpenverschraubung $g', 2, 'Pumpenanschluss G $g'),
-        Vorschlag('Kugelhahn $g IG/IG', 2, 'Absperrventil vor und hinter der Pumpe'),
+        Vorschlag('Pumpenverschraubung $g', 2, 'üblicher Anschluss G $g – am Typenschild/Datenblatt der gewählten Pumpe prüfen'),
+        Vorschlag('Kugelhahn $g IG/IG', 2, 'Absperrventil vor und hinter der Pumpe (Größe zum Pumpenanschluss prüfen)'),
         Vorschlag('Pumpenisolierschale Heizung', 1, 'Wärmedämmung der Pumpe'),
         Vorschlag('Flachdichtung Fiber $g', 1, 'Dichtungen (falls nicht in der Verschraubung)'),
       ];

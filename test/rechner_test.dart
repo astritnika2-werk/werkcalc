@@ -12,6 +12,28 @@ void main() {
       expect(v, inInclusiveRange(0.42, 0.46));
     });
 
+    test('Volumenstrom: Prüfwerte, kleineres ΔT → mehr Volumenstrom', () {
+      expect(volumenstromAusLeistung(20, 20), inInclusiveRange(0.86, 0.87));
+      expect(volumenstromAusLeistung(30, 20), inInclusiveRange(1.28, 1.30));
+      expect(volumenstromAusLeistung(20, 10), inInclusiveRange(1.71, 1.73));
+      expect(volumenstromAusLeistung(20, 30), inInclusiveRange(0.56, 0.58));
+      expect(volumenstromAusLeistung(10, 20), inInclusiveRange(0.42, 0.46));
+      expect(volumenstromAusLeistung(20, 10), greaterThan(volumenstromAusLeistung(20, 20)));
+    });
+
+    test('Test 1: 10 kW, ΔT 20, Ø22, 100 m, Σζ 10', () {
+      final a = berechnePumpe(
+        heizleistungKw: 10,
+        deltaTK: 20,
+        durchmesserMm: 22,
+        laengeM: 100,
+        zetaSumme: 10,
+      )!;
+      expect(a.volumenstromM3h * 1000 / 60, inInclusiveRange(7.0, 7.7));
+      expect(a.foerderhoeheM, greaterThan(0.3));
+      expect(a.foerderhoeheM, lessThan(1.5));
+    });
+
     test('kleine Anlage: DN 25, kleine Förderhöhe', () {
       final a = berechnePumpe(
         heizleistungKw: 10,
