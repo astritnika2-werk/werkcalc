@@ -86,3 +86,20 @@ Kalibrierung? kalibriere(List<({double x, double y, double z})> proben) {
 
   return Kalibrierung(mw(rolls), mw(pitches), math.max(sd(rolls), sd(pitches)));
 }
+
+/// Lage der Blase im Anzeigekreis als Einheitsvektor-Anteil (−1…1).
+/// Die Blase wandert wie bei einer echten Libelle zur HÖHEREN Seite:
+///  roll > 0 (rechts höher)  → dx > 0 (nach rechts auf dem Display)
+///  pitch > 0 (vorne höher)  → dy < 0 (nach oben auf dem Display, y zeigt nach unten)
+/// [skalaGrad] ist nur der Darstellungsbereich (Vollausschlag), keine Bewertung.
+({double dx, double dy}) blasenPosition(double rollGrad, double pitchGrad, {double skalaGrad = 5}) {
+  double lim(double v) => (v / skalaGrad).clamp(-1.0, 1.0);
+  var dx = lim(rollGrad);
+  var dy = -lim(pitchGrad);
+  final len = math.sqrt(dx * dx + dy * dy);
+  if (len > 1) {
+    dx /= len;
+    dy /= len;
+  }
+  return (dx: dx, dy: dy);
+}

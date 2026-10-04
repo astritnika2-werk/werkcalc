@@ -53,4 +53,32 @@ void main() {
     expect(berechneNeigung(0, 0, -9.81).flach, false);
     expect(kalibriere([vec(0, 0)]), isNull);
   });
+
+  group('Blasenposition (Display: x rechts, y nach unten)', () {
+    test('links höher → Blase nach links', () {
+      final p = blasenPosition(-3, 0);
+      expect(p.dx, lessThan(0));
+      expect(p.dy, 0);
+    });
+    test('rechts höher → Blase nach rechts', () {
+      expect(blasenPosition(3, 0).dx, greaterThan(0));
+    });
+    test('vorne höher → Blase nach oben', () {
+      final p = blasenPosition(0, 3);
+      expect(p.dy, lessThan(0));
+      expect(p.dx, 0);
+    });
+    test('hinten höher → Blase nach unten', () {
+      expect(blasenPosition(0, -3).dy, greaterThan(0));
+    });
+    test('Sensor: linke Kante angehoben → Blase links', () {
+      // linke Kante hoch ⇒ Beschleunigung x negativ
+      final n = berechneNeigung(-0.5, 0, 9.8);
+      expect(blasenPosition(n.rollGrad, n.pitchGrad).dx, lessThan(0));
+    });
+    test('Sensor: Vorderkante angehoben → Blase oben', () {
+      final n = berechneNeigung(0, 0.5, 9.8);
+      expect(blasenPosition(n.rollGrad, n.pitchGrad).dy, lessThan(0));
+    });
+  });
 }

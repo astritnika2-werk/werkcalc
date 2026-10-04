@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import 'wasserwaage_logik.dart';
@@ -43,6 +44,9 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   @override
   void initState() {
     super.initState();
+    // Die Sensorachsen gehören zum Gerät. Dreht sich die Anzeige, stimmen
+    // Links/Rechts und Vorne/Hinten nicht mehr mit dem Bildschirm überein.
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _sa = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 20)).listen((e) {
       if (!_hatWerte) {
         _x = e.x;
@@ -74,6 +78,7 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _sa?.cancel();
     _timer?.cancel();
     super.dispose();
@@ -358,9 +363,9 @@ class _LibellePainter extends CustomPainter {
       ..color = linie;
 
     // Kreis in der Mitte, Platz links/rechts für Beschriftung, unten für Leiste.
-    const rand = 56.0;
-    final r = math.min(size.width - 2 * rand, size.height - 56) / 2;
-    final mitte = Offset(size.width / 2, r + 4);
+    const rand = 70.0;
+    final r = math.min(size.width - 2 * rand, size.height - 76) / 2;
+    final mitte = Offset(size.width / 2, r + 20);
     canvas.drawCircle(mitte, r, Paint()..color = grund);
     canvas.drawCircle(mitte, r, stroke);
     canvas.drawCircle(mitte, r * 2 / 3, stroke..strokeWidth = 1);
@@ -369,13 +374,8 @@ class _LibellePainter extends CustomPainter {
     canvas.drawLine(mitte - Offset(0, r), mitte + Offset(0, r), stroke);
 
     double lim(double v) => (v / _skalaGrad).clamp(-1.0, 1.0);
-    // Vektor der Blase, auf den Kreis begrenzt.
-    var dx = lim(roll), dy = -lim(pitch);
-    final len = math.sqrt(dx * dx + dy * dy);
-    if (len > 1) {
-      dx /= len;
-      dy /= len;
-    }
+    final pos = blasenPosition(roll, pitch, skalaGrad: _skalaGrad);
+    final dx = pos.dx, dy = pos.dy;
     final br = r * 0.14;
     final bm = mitte + Offset(dx, dy) * (r - br);
     canvas.drawCircle(bm, br, Paint()..color = farbe.withValues(alpha: 0.85));
@@ -385,9 +385,9 @@ class _LibellePainter extends CustomPainter {
       ..color = farbe);
 
     _beschrifte(canvas, '← Links', Offset(rand / 2 + 2, mitte.dy));
-    _beschrifte(canvas, 'Rechts →', Offset(size.width - rand / 2 - 2, mitte.dy));
-    _beschrifte(canvas, '↑ Vorne', Offset(mitte.dx, mitte.dy - r - 0));
-    _beschrifte(canvas, '↓ Hinten', Offset(mitte.dx, mitte.dy + r + 2));
+    _beschrifte(canvas, 'Rechts →', Offset(size.width - rand / 2 - 8, mitte.dy));
+    _beschrifte(canvas, '↑ Vorne', Offset(mitte.dx, mitte.dy - r - 10));
+    _beschrifte(canvas, '↓ Hinten', Offset(mitte.dx, mitte.dy + r + 10));
 
     // Waagerechte Leiste unten.
     final ly = size.height - 18;
@@ -410,7 +410,7 @@ class _LibellePainter extends CustomPainter {
     _beschrifte(canvas, '← Links  ─  ●  ─  Rechts →', Offset(size.width / 2, ly + 14));
 
     // Senkrechte Leiste rechts außen.
-    final vx = size.width - 12;
+    final vx = size.width - 10;
     final vt = mitte.dy - r * 0.8;
     final vh = r * 1.6;
     final vleiste = RRect.fromRectAndRadius(
