@@ -90,6 +90,12 @@ void main() {
             expect(r.left, greaterThanOrEqualTo(0));
             expect(r.right, lessThanOrEqualTo(g.width));
             expect(r.bottom, lessThanOrEqualTo(g.height));
+            if (!m.istFlaeche && g.width > g.height * 1.3 && z == Zustand.gueltig) {
+              // Breite Ansicht: die Skala nutzt den größten Teil des Bildschirms.
+              final skala = t.getSize(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is SkalaPainter));
+              expect(skala.width, greaterThan(g.width * 0.7));
+              expect(skala.height, greaterThan(g.height * 0.7));
+            }
             if (!m.istFlaeche) {
               final w = bildschirmRect(t, find.byKey(const Key('winkel')));
               expect(w.left, greaterThanOrEqualTo(0));
@@ -118,6 +124,11 @@ void main() {
           expect(t.takeException(), isNull);
           expect(find.byType(Scrollable), findsNothing);
           if (z == Zustand.fehler) return;
+          if (z == Zustand.gueltig) {
+            final skala = t.getSize(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is SkalaPainter));
+            expect(skala.width, greaterThan(g.height * 0.7), reason: 'Skala nutzt die lange Seite');
+            expect(skala.height, greaterThan(g.width * 0.7), reason: 'Skala nutzt die kurze Seite');
+          }
           // Statusfeld bleibt komplett auf dem Bildschirm.
           final r = bildschirmRect(t, find.byKey(const Key('status')));
           expect(r.left, greaterThanOrEqualTo(0));

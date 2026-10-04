@@ -343,6 +343,7 @@ class WasserwaageAnsicht extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       final breit = c.maxWidth >= c.maxHeight;
+      if (breit) return _breit();
       return Column(children: [
         _Kopf(modus: modus, onEinstellungen: onEinstellungen, onZurueck: onZurueck),
         Expanded(
@@ -350,7 +351,7 @@ class WasserwaageAnsicht extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
             child: fehler != null
                 ? Center(child: _Karte(child: Text(fehler!, style: const TextStyle(color: _kText))))
-                : (modus.istFlaeche ? _flaeche(breit) : _linie(breit)),
+                : (modus.istFlaeche ? _flaecheHoch() : _linieHoch()),
           ),
         ),
         _Fuss(
@@ -376,10 +377,150 @@ class WasserwaageAnsicht extends StatelessWidget {
     return (text: '–', unter: null, waagerecht: false, warn: false);
   }
 
-  // ───────── Linie (1D) ─────────
-  Widget _linie(bool breit) {
+  Linienmessung? get _gueltigeLinie {
     final l = linie;
-    final Linienmessung? m = (l != null && l.gueltig && lageOk) ? l : null;
+    return (l != null && l.gueltig && lageOk) ? l : null;
+  }
+
+  Neigung? get _gueltigeNeigung {
+    final n = neigung;
+    return (n != null && n.gueltig && lageOk) ? n : null;
+  }
+
+  // ───────── Breit/flach (Seitenlagen, Querformat): alles in einer schmalen Kopfleiste,
+  // die Skala bzw. Fläche nutzt den ganzen restlichen Platz ─────────
+  Widget _breit() {
+    final Widget mitte;
+    final Widget haupt;
+    if (modus.istFlaeche) {
+      final m = _gueltigeNeigung;
+      final st = _status(m == null ? null : richtungsText(m), null);
+      mitte = Row(mainAxisSize: MainAxisSize.min, children: [
+        _XY(label: 'X', grad: m?.aGrad, steigung: m?.sx),
+        const SizedBox(width: 14),
+        _XY(label: 'Y', grad: m?.bGrad, steigung: m?.sy),
+        const SizedBox(width: 14),
+        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn),
+      ]);
+      haupt = LayoutBuilder(builder: (context, k) {
+        final d = math.min(k.maxWidth, k.maxHeight);
+        return Center(
+          child: SizedBox(width: d, height: d, child: CustomPaint(size: Size(d, d), painter: FlaechePainter(neigung: m))),
+        );
+      });
+    } else {
+      final m = _gueltigeLinie;
+      final st = _status(m == null ? null : linienRichtung(m).toUpperCase(), null);
+      mitte = Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(m == null ? '–' : '${zahl(m.grad)}°',
+            key: const Key('winkel'),
+            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+        const SizedBox(width: 14),
+        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn),
+        const SizedBox(width: 14),
+        _Mini(wert: m == null ? '–' : '${zahl(m.prozent)} %', label: 'Gefälle'),
+        const SizedBox(width: 10),
+        _Mini(wert: m == null ? '–' : '${zahl(m.mmProM, 0)} mm/m', label: 'Gefälle'),
+      ]);
+      haupt = CustomPaint(
+        painter: SkalaPainter(grad: m?.grad ?? 0.0, aktiv: m != null),
+        child: const SizedBox.expand(),
+      );
+    }
+    final kal = _kalStatus(kalLaeuft: kalLaeuft, kalMeldung: kalMeldung, kalOk: kalOk, kalibriert: kalibriert);
+    return Column(children: [
+      SizedBox(
+        height: 46,
+        child: Row(children: [
+          _IconKlein(icon: Icons.arrow_back, tooltip: 'Zurück', onPressed: onZurueck),
+          Flexible(
+            flex: 2,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Wasserwaage',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _kText, fontWeight: FontWeight.w800, fontSize: 15, height: 1.1)),
+              Text(_modusKurz(modus),
+                  key: const Key('modusLabel'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _kText2, fontWeight: FontWeight.w700, fontSize: 9.5, letterSpacing: 0.8, height: 1.2)),
+            ]),
+          ),
+          Expanded(flex: 5, child: Center(child: fehler != null ? const SizedBox() : FittedBox(fit: BoxFit.scaleDown, child: mitte))),
+          _IconKlein(icon: Icons.settings_outlined, tooltip: 'Einstellungen', onPressed: onEinstellungen),
+        ]),
+      ),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+          child: fehler != null
+              ? Center(child: _Karte(child: Text(fehler!, style: const TextStyle(color: _kText))))
+              : Row(children: [
+                  Expanded(child: haupt),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 104,
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: SizedBox(
+                          width: 104,
+                          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                            Text(kal.text,
+                                key: const Key('kalStatus'),
+                                maxLines: 6,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: kal.farbe, fontSize: 10, height: 1.2)),
+                            const SizedBox(height: 6),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                  backgroundColor: _kBlau,
+                                  minimumSize: const Size(0, 44),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4)),
+                              onPressed: onKalibrieren,
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(Icons.my_location, size: 20),
+                                  Text('Kalibrieren', style: TextStyle(fontSize: 12)),
+                                ]),
+                              ),
+                            ),
+                            if (onZuruecksetzen != null) ...[
+                              const SizedBox(height: 6),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kText,
+                                    side: const BorderSide(color: _kRand),
+                                    minimumSize: const Size(0, 32),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2)),
+                                onPressed: onZuruecksetzen,
+                                child: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.restart_alt, size: 16),
+                                    SizedBox(width: 4),
+                                    Text('Zurücksetzen', style: TextStyle(fontSize: 11)),
+                                  ]),
+                                ),
+                              ),
+                            ],
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+        ),
+      ),
+    ]);
+  }
+
+  // ───────── Linie (1D), Hochformat ─────────
+  Widget _linieHoch() {
+    final m = _gueltigeLinie;
     final st = _status(m == null ? null : linienRichtung(m).toUpperCase(), null);
     final skala = CustomPaint(
       painter: SkalaPainter(grad: m?.grad ?? 0.0, aktiv: m != null),
@@ -390,7 +531,7 @@ class WasserwaageAnsicht extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Text(m == null ? '–' : '${zahl(m.grad)}°',
             key: const Key('winkel'),
-            style: const TextStyle(fontSize: 120, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+            style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
       ),
     );
     final werte = Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -399,34 +540,18 @@ class WasserwaageAnsicht extends StatelessWidget {
       Expanded(child: _Wert(label: 'Gefälle', wert: m == null ? '–' : '${zahl(m.mmProM, 0)} mm/m')),
     ]);
     final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
-    if (breit) {
-      return Row(children: [
-        Expanded(flex: 6, child: skala),
-        const SizedBox(width: 10),
-        Expanded(
-          flex: 5,
-          child: Column(children: [
-            Expanded(flex: 5, child: winkel),
-            Expanded(flex: 3, child: banner),
-            const SizedBox(height: 8),
-            Expanded(flex: 3, child: werte),
-          ]),
-        ),
-      ]);
-    }
     return Column(children: [
-      Expanded(flex: 5, child: skala),
+      Expanded(flex: 14, child: skala),
       Expanded(flex: 4, child: winkel),
       Expanded(flex: 2, child: banner),
-      const SizedBox(height: 8),
+      const SizedBox(height: 6),
       Expanded(flex: 2, child: werte),
     ]);
   }
 
-  // ───────── Fläche (2D) ─────────
-  Widget _flaeche(bool breit) {
-    final nn = neigung;
-    final Neigung? m = (nn != null && nn.gueltig && lageOk) ? nn : null;
+  // ───────── Fläche (2D), Hochformat ─────────
+  Widget _flaecheHoch() {
+    final m = _gueltigeNeigung;
     final st = _status(m == null ? null : richtungsText(m),
         m == null ? null : 'Neigung gemessen: ${zahl(m.gesamtGrad)}°');
     Widget panel(double d) => SizedBox(
@@ -440,34 +565,18 @@ class WasserwaageAnsicht extends StatelessWidget {
       Expanded(child: _AchsenKachel(titel: 'Y (vorne/hinten)', grad: m?.bGrad, steigung: m?.sy)),
     ]);
     final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
-
     return LayoutBuilder(builder: (context, c) {
-      if (breit) {
-        final d = math.min(c.maxHeight, c.maxWidth * 0.6);
-        return Row(children: [
-          panel(d),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(children: [
-              Expanded(flex: 3, child: karten),
-              const SizedBox(height: 8),
-              Expanded(flex: 2, child: banner),
-            ]),
-          ),
-        ]);
-      }
-      // Hochformat: das Quadrat so groß wie möglich, darunter X/Y und Richtung.
-      final d = math.min(c.maxWidth, math.max(100.0, c.maxHeight - 150));
+      final d = math.min(c.maxWidth, math.max(100.0, c.maxHeight - 130));
       return Column(children: [
         panel(d),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Expanded(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 210),
+              constraints: const BoxConstraints(maxHeight: 190),
               child: Column(children: [
                 Expanded(flex: 3, child: karten),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Expanded(flex: 2, child: banner),
               ]),
             ),
@@ -475,6 +584,83 @@ class WasserwaageAnsicht extends StatelessWidget {
         ),
       ]);
     });
+  }
+}
+
+/// Text und Farbe der Kalibrierungsanzeige.
+({String text, Color farbe}) _kalStatus(
+    {required bool kalLaeuft, required String? kalMeldung, required String? kalOk, required bool kalibriert}) {
+  if (kalLaeuft) return (text: 'Kalibrierung läuft – Handy ruhig halten …', farbe: _kText);
+  if (kalMeldung != null) return (text: kalMeldung, farbe: const Color(0xFFFFB4A9));
+  if (kalOk != null) return (text: 'Kalibriert ✓ ($kalOk)', farbe: _kText);
+  if (kalibriert) return (text: 'Kalibriert (diese Betriebsart)', farbe: _kText2);
+  return (text: 'Nicht kalibriert (diese Betriebsart)', farbe: _kText2);
+}
+
+class _IconKlein extends StatelessWidget {
+  const _IconKlein({required this.icon, required this.tooltip, required this.onPressed});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        icon: Icon(icon, color: _kText, size: 22),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      );
+}
+
+/// Kleines Richtungsfeld für die Kopfleiste der breiten Ansicht.
+class _Chip extends StatelessWidget {
+  const _Chip(this.text, {required this.waagerecht, required this.warn});
+  final String text;
+  final bool waagerecht;
+  final bool warn;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg = waagerecht ? const Color(0xFF123F27) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
+    final Color rand = waagerecht ? _kGruen : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
+    final Color tx = (waagerecht || warn) ? _kText : const Color(0xFF0B2A5B);
+    return Container(
+      key: const Key('status'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16), border: Border.all(color: rand)),
+      child: Text(text, style: TextStyle(fontSize: 14, letterSpacing: 0.8, fontWeight: FontWeight.w800, color: tx)),
+    );
+  }
+}
+
+class _Mini extends StatelessWidget {
+  const _Mini({required this.wert, required this.label});
+  final String wert;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(wert, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kText, fontFeatures: _ziffern)),
+        Text(label, style: const TextStyle(fontSize: 10, color: _kText2)),
+      ]);
+}
+
+class _XY extends StatelessWidget {
+  const _XY({required this.label, required this.grad, required this.steigung});
+  final String label;
+  final double? grad;
+  final double? steigung;
+
+  @override
+  Widget build(BuildContext context) {
+    final g = grad, s = steigung;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('$label ${g == null ? '–' : '${zahl(g)}°'}',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+      Text(s == null ? '–' : '${zahl(s * 100, 1)} % · ${zahl(s * 1000, 0)} mm/m',
+          style: const TextStyle(fontSize: 10, color: _kText2, fontFeatures: _ziffern)),
+    ]);
   }
 }
 
@@ -532,22 +718,9 @@ class _Fuss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String text;
-    var farbe = _kText2;
-    if (kalLaeuft) {
-      text = 'Kalibrierung läuft – Handy ruhig halten …';
-      farbe = _kText;
-    } else if (kalMeldung != null) {
-      text = kalMeldung!;
-      farbe = const Color(0xFFFFB4A9);
-    } else if (kalOk != null) {
-      text = 'Kalibriert ✓ ($kalOk)';
-      farbe = _kText;
-    } else if (kalibriert) {
-      text = 'Kalibriert (diese Betriebsart)';
-    } else {
-      text = 'Nicht kalibriert (diese Betriebsart)';
-    }
+    final ks = _kalStatus(kalLaeuft: kalLaeuft, kalMeldung: kalMeldung, kalOk: kalOk, kalibriert: kalibriert);
+    final text = ks.text;
+    final farbe = ks.farbe;
     final status = Text(text,
         key: const Key('kalStatus'),
         maxLines: 2,
@@ -901,7 +1074,7 @@ class SkalaPainter extends CustomPainter {
     double xAt(double g) => cx + (g / _kSkala) * (x1 - x0) / 2;
 
     // Kopfzeile: Richtung der Seiten.
-    final kopfSize = (u * 0.055).clamp(9.0, 16.0).toDouble();
+    final kopfSize = (u * 0.055).clamp(9.0, 18.0).toDouble();
     final kopfY = achseY - u * 0.40;
     _beschriften(canvas, '◀ LINKS HÖHER', Offset(w * 0.04, kopfY), size: kopfSize, anker: Alignment.centerLeft);
     _beschriften(canvas, 'RECHTS HÖHER ▶', Offset(w * 0.96, kopfY), size: kopfSize, anker: Alignment.centerRight);
@@ -925,7 +1098,7 @@ class SkalaPainter extends CustomPainter {
           ..strokeWidth = (null0 ? 3 : (gross ? 2 : 1)) * k,
       );
     }
-    final labelSize = (u * 0.075).clamp(10.0, 22.0).toDouble();
+    final labelSize = (u * 0.075).clamp(10.0, 26.0).toDouble();
     const marken = <double>[-5, -2.5, 0, 2.5, 5];
     for (final g in marken) {
       final t = g == 0 ? '0°' : '${g > 0 ? '+' : '−'}${zahl(g.abs(), g.abs() == 2.5 ? 1 : 0)}°';
