@@ -1,4 +1,5 @@
 // Digitale Anzeige: Marker-Position kommt linear aus denselben Messwerten.
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -78,5 +79,66 @@ void main() {
       SkalaPainter(grad: g, aktiv: a).paint(Canvas(rec), const Size(360, 120));
       rec.endRecording();
     }
+  });
+
+  group('Anzeige-Beruhigung (nur Darstellung)', () {
+    test('Ruhe: Anzeige = Messwert exakt (kein Versatz, kein Einfrieren)', () {
+      final f = AnzeigeFilter();
+      for (var i = 0; i < 300; i++) {
+        f.update(0.31, -0.22, 9.78, 0.033);
+      }
+      expect(f.x, closeTo(0.31, 1e-9));
+      expect(f.y, closeTo(-0.22, 1e-9));
+      expect(f.z, closeTo(9.78, 1e-9));
+    });
+    test('folgt einer Änderung: nach tau rund 63 %, danach vollständig', () {
+      final f = AnzeigeFilter();
+      f.update(0, 0, 9.81, 0.033);
+      var t = 0.0;
+      while (t < kAnzeigeTau - 1e-9) {
+        f.update(1.0, 0, 9.81, 0.033);
+        t += 0.033;
+      }
+      expect(f.x, inInclusiveRange(0.55, 0.75));
+      for (var i = 0; i < 100; i++) {
+        f.update(1.0, 0, 9.81, 0.033);
+      }
+      expect(f.x, closeTo(1.0, 1e-6));
+    });
+    test('Rauschen wird um mehr als ein Drittel kleiner', () {
+      final rnd = math.Random(7);
+      final f = AnzeigeFilter();
+      f.update(0, 0, 9.81, 0.033);
+      var roh = 0.0, geglaettet = 0.0;
+      const n = 3000;
+      for (var i = 0; i < n; i++) {
+        final r = (rnd.nextDouble() - 0.5) * 0.4;
+        f.update(r, 0, 9.81, 0.033);
+        roh += r * r;
+        geglaettet += f.x * f.x;
+      }
+      expect(math.sqrt(geglaettet / n), lessThan(math.sqrt(roh / n) * 0.67));
+    });
+    test('Glättung ist beschränkt (reagiert weiter flüssig): 95 % nach rund 3 tau', () {
+      final f = AnzeigeFilter();
+      f.update(0, 0, 9.81, 0.033);
+      var t = 0.0;
+      while (t < 3 * kAnzeigeTau) {
+        f.update(1.0, 0, 9.81, 0.033);
+        t += 0.033;
+      }
+      expect(f.x, greaterThan(0.93));
+      expect(t, lessThan(0.6));
+    });
+    test('Zahlen und Marker kommen aus demselben geglätteten Vektor', () {
+      final f = AnzeigeFilter();
+      for (var i = 0; i < 200; i++) {
+        f.update(0.5, 9.78, 0.3, 0.033);
+      }
+      final l = berechneLinie(Modus.linieDisplay, f.x, f.y, f.z);
+      final roh = berechneLinie(Modus.linieDisplay, 0.5, 9.78, 0.3);
+      expect(l.grad, closeTo(roh.grad, 1e-9));
+      expect(skalaAnteil(l.grad), closeTo(skalaAnteil(roh.grad), 1e-9));
+    });
   });
 }

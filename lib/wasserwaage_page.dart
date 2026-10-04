@@ -23,6 +23,37 @@ const _kLimeMitte = Color(0xFFA6EA00);
 const _kGruen = Color(0xFF2FBF4A);
 const _ziffern = [FontFeature.tabularFigures()];
 
+/// Zeitkonstante der reinen Anzeige-Beruhigung in Sekunden. Die Messung (GravityFilter,
+/// Kalibrierung, Berechnung) bleibt unverändert; nur was auf dem Bildschirm steht, wird
+/// zusätzlich geglättet. Die Messglättung hat 0,5 s, 0,15 s = rund 30 % davon
+/// (erster Versuch; 0,2 s wären rund 40 %). Interner Anzeigewert, keine Herstellervorgabe, keine Norm.
+const double kAnzeigeTau = 0.15;
+
+/// Einfache exponentielle Glättung (Tiefpass erster Ordnung) des Schwerkraftvektors
+/// nur für die Anzeige. Im Ruhezustand ist das Ergebnis exakt der Messwert (kein Versatz,
+/// kein Einfrieren); bei Bewegung folgt die Anzeige flüssig mit kleiner Verzögerung.
+class AnzeigeFilter {
+  AnzeigeFilter({this.tau = kAnzeigeTau});
+  final double tau;
+  double x = 0, y = 0, z = 0;
+  bool initialisiert = false;
+
+  void update(double ax, double ay, double az, double dt) {
+    if (!initialisiert) {
+      x = ax;
+      y = ay;
+      z = az;
+      initialisiert = true;
+      return;
+    }
+    if (dt <= 0) return;
+    final k = 1 - math.exp(-dt / tau);
+    x += k * (ax - x);
+    y += k * (ay - y);
+    z += k * (az - z);
+  }
+}
+
 /// Wasserwaage / digitaler Nivellierer.
 /// Sensorik: Beschleunigungssensor (Schwerkraft) + Gyroskop zur Glättung.
 /// Die Lage des Handys (flach, auf der Seite, aufrecht) wird aus dem
@@ -42,6 +73,8 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   Timer? _timer;
   final Stopwatch _uhr = Stopwatch();
   final GravityFilter _filter = GravityFilter();
+  final AnzeigeFilter _anzeige = AnzeigeFilter(); // nur Darstellung, nicht Messung
+  int _anzeigeUs = 0;
   int _letzteUs = 0;
   double? _gx, _gy, _gz; // letzte Drehrate (rad/s)
   bool _hatWerte = false;
@@ -80,6 +113,11 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
       if (_kalLaeuft && _hatWerte) {
         _kalProben.add((x: _filter.x, y: _filter.y, z: _filter.z));
         if (_uhr.elapsedMilliseconds - _kalStart >= _kalibrierMs) _kalibrierungAbschliessen();
+      }
+      if (_hatWerte) {
+        final jetzt = _uhr.elapsedMicroseconds;
+        _anzeige.update(_filter.x, _filter.y, _filter.z, (jetzt - _anzeigeUs) / 1e6);
+        _anzeigeUs = jetzt;
       }
       setState(() {});
     });
@@ -186,11 +224,11 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
     Linienmessung? l;
     var lageOk = false;
     if (_hatWerte) {
-      lageOk = lageStimmt(m, _filter.x, _filter.y, _filter.z);
+      lageOk = lageStimmt(m, _anzeige.x, _anzeige.y, _anzeige.z);
       if (m.istFlaeche) {
-        n = berechneNeigung(_filter.x, _filter.y, _filter.z, lage: m.lage, a0: kal?.a0 ?? 0, b0: kal?.b0 ?? 0);
+        n = berechneNeigung(_anzeige.x, _anzeige.y, _anzeige.z, lage: m.lage, a0: kal?.a0 ?? 0, b0: kal?.b0 ?? 0);
       } else {
-        l = berechneLinie(m, _filter.x, _filter.y, _filter.z, a0: kal?.a0 ?? 0);
+        l = berechneLinie(m, _anzeige.x, _anzeige.y, _anzeige.z, a0: kal?.a0 ?? 0);
       }
     }
 
