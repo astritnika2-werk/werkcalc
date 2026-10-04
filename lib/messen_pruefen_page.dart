@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'pumpe_lauf_page.dart';
 import 'vibration_page.dart';
+import 'wasserwaage_page.dart';
 
 /// Bereich „Messen & Prüfen“. Es sind nur die Funktionen aktiv, die fertig
 /// gebaut sind; die übrigen sind als „Bald verfügbar“ vorgemerkt.
@@ -22,7 +23,7 @@ class MessenPruefenPage extends StatelessWidget {
       (
         'MONTAGE & ROHRLEITUNGEN',
         [
-          _Eintrag('Wasserwaage', Icons.straighten, null),
+          _Eintrag('Wasserwaage', Icons.straighten, () => const WasserwaagePage()),
           _Eintrag('Neigung / Gefälle', Icons.architecture, null),
           _Eintrag('Bewegung prüfen', Icons.open_with, null),
         ]
