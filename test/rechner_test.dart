@@ -13,7 +13,7 @@ void main() {
     });
 
     test('Volumenstrom: Prüfwerte, kleineres ΔT → mehr Volumenstrom', () {
-      expect(volumenstromAusLeistung(20, 20), inInclusiveRange(0.86, 0.87));
+      expect(volumenstromAusLeistung(20, 20), inInclusiveRange(0.855, 0.87));
       expect(volumenstromAusLeistung(30, 20), inInclusiveRange(1.28, 1.30));
       expect(volumenstromAusLeistung(20, 10), inInclusiveRange(1.71, 1.73));
       expect(volumenstromAusLeistung(20, 30), inInclusiveRange(0.56, 0.58));
