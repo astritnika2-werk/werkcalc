@@ -27,6 +27,32 @@ void main() {
       expect(a.foerderhoeheM, lessThan(2));
     });
 
+    test('Empfohlener Bereich: Min ≤ Empfehlung ≤ Max', () {
+      final a = berechnePumpe(
+        heizleistungKw: 20,
+        deltaTK: 20,
+        durchmesserMm: 25,
+        laengeM: 60,
+        zetaSumme: 20,
+        zusatzMbar: 150,
+      )!;
+      // ignore: avoid_print
+      print('Praxis: V=${a.volumenstromM3h} H=${a.foerderhoeheM} ${a.typMin}/${a.typ}/${a.typMax}');
+      expect(a.typ, isNotNull);
+      final namen = kPumpenTypen[a.dn]!.map((t) => t.$1).toList();
+      final iMin = namen.indexOf(a.typMin!);
+      final iEmp = namen.indexOf(a.typ!);
+      final iMax = namen.indexOf(a.typMax!);
+      expect(iMin <= iEmp, isTrue);
+      expect(iEmp <= iMax, isTrue);
+    });
+
+    test('keine Standardpumpe → kein Bereich', () {
+      final a = berechnePumpe(volumenstromM3h: 8, durchmesserMm: 54, laengeM: 20)!;
+      expect(a.typMin, isNull);
+      expect(a.typMax, isNull);
+    });
+
     test('höhere Widerstände → größere Pumpe', () {
       final klein = berechnePumpe(volumenstromM3h: 1.5, durchmesserMm: 26, laengeM: 40)!;
       final gross = berechnePumpe(

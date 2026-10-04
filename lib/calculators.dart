@@ -22,7 +22,12 @@ Widget _pumpePage({
   String? laenge,
   double? rauheit,
   String? zeta,
+  double? temperatur,
 }) {
+  String temp = '60';
+  for (final o in const ['40', '50', '60', '70']) {
+    if (temperatur != null && (double.parse(o) - temperatur).abs() < 1e-9) temp = o;
+  }
   String rau = '0.0015';
   for (final o in const ['0.0015', '0.007', '0.045', '0.15']) {
     if (rauheit != null && (double.parse(o) - rauheit).abs() < 1e-9) rau = o;
@@ -62,7 +67,7 @@ Widget _pumpePage({
           CalcOption('60 °C', '60'),
           CalcOption('70 °C', '70'),
         ],
-        initial: '60',
+        initial: temp,
       ),
     ],
     compute: (v) {
@@ -80,8 +85,27 @@ Widget _pumpePage({
             highlight: true),
         ResultRow('Max. Förderhöhe der Pumpe ≥',
             '${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+        if (a.typ != null && a.typMin != null && a.typMax != null)
+          ResultRow(
+            'Empfohlener Bereich',
+            a.typMin == a.typMax
+                ? 'Typ ${a.typ}'
+                : (a.typMin == a.typ
+                    ? 'Typ ${a.typ} bis ${a.typMax}'
+                    : 'Typ ${a.typMin} bis ${a.typMax}'),
+            highlight: true,
+          ),
         if (a.typ != null)
-          ResultRow('Pumpengröße (Richtwert)', 'Typ ${a.typ}', highlight: true),
+          ResultRow('Beste Wahl (Richtwert)', 'Typ ${a.typ}'),
+        if (a.typ != null)
+          ResultRow(
+            'Warum: Bei ${fmt(a.foerderhoeheM, digits: 2)} m Förderhöhe soll die '
+            'Pumpe mind. ${fmt(a.foerderhoeheM * kPumpenReserveMin, digits: 1)} m '
+            '(knapp) bis ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m '
+            '(empfohlen) Maximalförderhöhe haben. Die größere Pumpe gibt Reserve '
+            'bei späterem Umbau, regelt aber im Teillastbereich weniger genau.',
+            '',
+          ),
         if (a.dn != null)
           ResultRow('Anschluss', 'DN ${a.dn} · G ${kPumpenGewinde[a.dn]}'),
         if (a.hinweis != null) ResultRow(a.hinweis!, ''),
@@ -95,8 +119,11 @@ Widget _pumpePage({
       return [
         Vorschlag('Umwälzpumpe Hocheffizienz ${a.typ}', 1,
             'Richtwert: DN ${a.dn}, Förderhöhe ≥ ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+        if (a.typMax != null && a.typMax != a.typ)
+          Vorschlag('Umwälzpumpe Hocheffizienz ${a.typMax}', 1,
+              'Alternative mit mehr Reserve (statt, nicht zusätzlich)'),
         Vorschlag('Pumpenverschraubung $g', 2, 'Pumpenanschluss G $g'),
-        Vorschlag('Kugelhahn $g IG/IG', 2, 'Absperrung vor und hinter der Pumpe'),
+        Vorschlag('Kugelhahn $g IG/IG', 2, 'Absperrventil vor und hinter der Pumpe'),
         Vorschlag('Pumpenisolierschale Heizung', 1, 'Wärmedämmung der Pumpe'),
         Vorschlag('Flachdichtung Fiber $g', 1, 'Dichtungen (falls nicht in der Verschraubung)'),
       ];
@@ -345,6 +372,7 @@ final List<CalcDef> calculators = [
           laenge: v[3] == null ? null : fmt(v[3]!, digits: 2),
           rauheit: v[4],
           zeta: v[6] == null ? null : fmt(v[6]!, digits: 2),
+          temperatur: v[5],
         ),
       ),
       compute: (v) {

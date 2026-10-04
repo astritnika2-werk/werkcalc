@@ -275,6 +275,9 @@ const Map<int, String> kPumpenGewinde = {25: '1½"', 32: '2"'};
 /// benötigten Förderhöhe betragen (Betriebspunkt im mittleren Kennlinienbereich).
 const double kPumpenReserve = 1.5;
 
+/// Untere Grenze des empfohlenen Bereichs: knappere Pumpe (1,2-fache Förderhöhe).
+const double kPumpenReserveMin = 1.2;
+
 class PumpenAuslegung {
   const PumpenAuslegung({
     required this.volumenstromM3h,
@@ -285,6 +288,8 @@ class PumpenAuslegung {
     required this.dn,
     required this.typ,
     required this.hinweis,
+    this.typMin,
+    this.typMax,
   });
 
   final double volumenstromM3h;
@@ -301,6 +306,11 @@ class PumpenAuslegung {
   /// Empfohlener Katalog-Typ, z. B. „25-60“ (null: keine Standardpumpe).
   final String? typ;
   final String? hinweis;
+
+  /// Empfohlener Bereich: kleinster noch sinnvoller Typ (≥ 1,2 × H) bis zum
+  /// nächstgrößeren Typ (Reserve für spätere Erweiterung). Null: keine Standardpumpe.
+  final String? typMin;
+  final String? typMax;
 }
 
 /// Volumenstrom in m³/h aus Heizleistung (kW) und Spreizung ΔT (K).
@@ -345,16 +355,23 @@ PumpenAuslegung? berechnePumpe({
   final bedarf = h * kPumpenReserve;
   final dn = v <= 3 ? 25 : (v <= 6 ? 32 : null);
   String? typ;
+  String? typMin;
+  String? typMax;
   String? hinweis;
   if (dn == null) {
     hinweis = 'Volumenstrom über 6 m³/h: größere Pumpe (DN 40 oder mehr) '
         'nach Herstellerkennlinie wählen.';
   } else {
-    for (final t in kPumpenTypen[dn]!) {
-      if (t.$2 >= bedarf) {
-        typ = t.$1;
-        break;
-      }
+    final typen = kPumpenTypen[dn]!;
+    final iEmpf = typen.indexWhere((t) => t.$2 >= bedarf);
+    final iMin = typen.indexWhere((t) => t.$2 >= h * kPumpenReserveMin);
+    if (iEmpf >= 0) {
+      typ = typen[iEmpf].$1;
+      typMin = typen[iMin >= 0 && iMin <= iEmpf ? iMin : iEmpf].$1;
+      typMax = typen[iEmpf + 1 < typen.length ? iEmpf + 1 : iEmpf].$1;
+    }
+    if (v > 2.5 && v <= 3) {
+      hinweis = 'Volumenstrom nahe der Grenze: DN 25 oder DN 32 prüfen.';
     }
     if (typ == null) {
       hinweis = 'Förderhöhe über den Standard-Kleinpumpen: größere Baureihe '
@@ -370,6 +387,8 @@ PumpenAuslegung? berechnePumpe({
     dn: dn,
     typ: typ,
     hinweis: hinweis,
+    typMin: typMin,
+    typMax: typMax,
   );
 }
 
