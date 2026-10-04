@@ -68,6 +68,8 @@ p = "android/app/src/main/AndroidManifest.xml"
 s = open(p, encoding="utf-8").read()
 if "RECORD_AUDIO" not in s:
     s = s.replace("<application", '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <application', 1)
+if "HIGH_SAMPLING_RATE_SENSORS" not in s:
+    s = s.replace("<application", '<uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"/>\n    <application', 1)
 if "RecognitionService" not in s:
     q = '<queries>\n        <intent><action android:name="android.speech.RecognitionService"/></intent>\n    </queries>\n'
     if "<queries>" in s:
