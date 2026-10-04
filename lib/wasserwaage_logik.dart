@@ -60,8 +60,8 @@ class Lage {
 
   /// Name der Handy-Seite am positiven bzw. negativen Ende der Achse [achse].
   String seite(Achse achse, bool positiv) => switch ((achse, positiv)) {
-        (Achse.x, true) => 'Rechte Kante',
-        (Achse.x, false) => 'Linke Kante',
+        (Achse.x, true) => 'Rechts',
+        (Achse.x, false) => 'Links',
         (Achse.y, true) => ref == Achse.z ? 'Vorne' : 'Oberkante',
         (Achse.y, false) => ref == Achse.z ? 'Hinten' : 'Unterkante',
         (Achse.z, true) => 'Display',
@@ -69,16 +69,13 @@ class Lage {
       };
 
   /// Beschriftung der beiden Neigungsachsen.
-  String get titelA => switch (a) {
-        Achse.x => 'X · Links/Rechts',
-        Achse.y => ref == Achse.z ? 'Y · Vorne/Hinten' : 'Y · Ober-/Unterkante',
-        Achse.z => 'Z · Display/Rückseite',
-      };
+  String get titelA => _titel(a);
+  String get titelB => _titel(b);
 
-  String get titelB => switch (b) {
-        Achse.x => 'X · Links/Rechts',
-        Achse.y => ref == Achse.z ? 'Y · Vorne/Hinten' : 'Y · Ober-/Unterkante',
-        Achse.z => 'Z · Display/Rückseite',
+  String _titel(Achse achse) => switch (achse) {
+        Achse.x => 'X (links/rechts)',
+        Achse.y => ref == Achse.z ? 'Y (vorne/hinten)' : 'Y (Ober-/Unterkante)',
+        Achse.z => 'Z (Display/Rückseite)',
       };
 }
 
@@ -271,4 +268,23 @@ class GravityFilter {
     y = py + k * (ay - py);
     z = pz + k * (az - pz);
   }
+}
+
+/// Zahl mit Komma, ohne „−0,00“, mit typografischem Minus.
+String zahl(double v, [int stellen = 2]) {
+  var s = v.toStringAsFixed(stellen).replaceAll('.', ',');
+  if (RegExp(r'^-0[,0]*$').hasMatch(s)) s = s.substring(1);
+  return s.replaceFirst('-', '−');
+}
+
+/// Welche Seite höher liegt, aus denselben Werten wie die Anzeige
+/// (Rundung auf 2 Stellen wie in der Zahlenanzeige). Beispiel: „Rechts höher, vorne höher“.
+String richtungsText(Neigung n) {
+  if (!n.gueltig) return '–';
+  final teile = <String>[];
+  if (zahl(n.aGrad) != '0,00') teile.add('${n.lage.seite(n.lage.a, n.aGrad > 0)} höher');
+  if (zahl(n.bGrad) != '0,00') teile.add('${n.lage.seite(n.lage.b, n.bGrad > 0)} höher');
+  if (teile.isEmpty) return 'Waagerecht';
+  if (teile.length == 2) teile[1] = teile[1][0].toLowerCase() + teile[1].substring(1);
+  return teile.join(', ');
 }
