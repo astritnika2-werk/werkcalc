@@ -84,7 +84,6 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   bool _hatWerte = false;
   String? _fehler;
   Modus _modus = Modus.flaeche; // vom Nutzer gewählt, wird nicht erraten
-  Modus _linie = Modus.linieDisplay; // zuletzt gewählte Linien-Betriebsart
 
   final Map<Modus, ModusKalibrierung> _kals = {};
   bool _kalLaeuft = false;
@@ -92,11 +91,13 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   String? _kalMeldung;
   String? _kalOk;
   final List<Vek> _kalProben = [];
+  bool _einstellungenOffen = false; // Einstellungen offen: Automatik pausiert
 
   @override
   void initState() {
     super.initState();
-    // Das Layout bleibt im Hochformat; die Messung hängt nicht an der Drehung.
+    // Der Bildschirm bleibt im Hochformat (Achsen und Richtungen bleiben eindeutig). In den Seitenlagen
+    // wird die ganze Oberfläche per RotatedBox gedreht; die Messung hängt nicht an der Drehung.
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _uhr.start();
     _sa = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 10)).listen(_beschleunigung,
@@ -122,7 +123,7 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
         final jetzt0 = _uhr.elapsedMicroseconds;
         final dtAuto = math.min((jetzt0 - _autoUs) / 1e6, 0.1);
         _autoUs = jetzt0;
-        if (_auto && !_kalLaeuft) {
+        if (_auto && !_kalLaeuft && !_einstellungenOffen) {
           final neu = _umschalter.update(_filter.x, _filter.y, _filter.z, dtAuto);
           if (neu != null) _modusWaehlen(neu, manuell: false);
         } else {
@@ -186,39 +187,6 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
     });
   }
 
-  void _hilfe() {
-    showDialog<void>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Wasserwaage'),
-        content: SingleChildScrollView(
-          child: Text(
-            'Die Betriebsart wechselt automatisch, sobald das Handy kurz (ca. 1 Sekunde) ruhig in einer der '
-            'vier Lagen liegt. Kleine Bewegungen lösen keinen Wechsel aus. Mit dem Schalter „Automatisch '
-            'umschalten“ oder durch eigene Wahl einer Betriebsart können Sie die Automatik ausschalten. '
-            'Gemessen wird immer nur in der gewählten Betriebsart.\n\n'
-            'Fläche (2D): Handy flach auf die Rückseite (Display oben). Der Marker zeigt die Neigung in '
-            'zwei Achsen (X nach rechts, Y nach vorne) und steht bei X 0,00° / Y 0,00° genau in der Mitte.\n'
-            'Linie – Display vorne: Handy aufrecht, Display zum Benutzer. Gemessen wird links/rechts '
-            'über die Breite (X-Achse).\n'
-            'Linie – Linke Seite: Handy steht auf der linken Seitenkante, Display zum Benutzer '
-            '(Oberkante zeigt nach links). Gemessen wird entlang der Längskante (Y-Achse). Die '
-            'Anzeige ist dafür gedreht, damit sie in dieser Lage lesbar ist.\n'
-            'Linie – Rechte Seite: wie links, nur auf der rechten Seitenkante (Oberkante zeigt nach rechts).\n'
-            'Der Marker bewegt sich immer zur höheren Seite. Skala: ±5° (darüber bleibt der Marker am Rand und wird orange).\n\n'
-            'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. Die Lage in '
-            'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die '
-            'gewählte Betriebsart. „Zurücksetzen“ löscht alle.\n\n'
-            'Neigung: Winkel gegen die Senkrechte der Lage. Gefälle %: Höhenunterschied je 100 cm. '
-            'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
-            'Die Anzeige ist linear und verwendet exakt die gemessenen Werte. Die Werte werden mit dem Gyroskop geglättet, damit sie nicht '
-            'springen; im Ruhezustand entspricht der Wert genau der Messung.\n\n$_kHinweis',
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
-      ),
-    );
-  }
 
   void _modusWaehlen(Modus m, {bool manuell = true}) {
     if (manuell && _auto) {
@@ -229,11 +197,47 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
     if (m == _modus) return;
     setState(() {
       _modus = m;
-      if (!m.istFlaeche) _linie = m;
       _kalLaeuft = false;
       _kalMeldung = null;
       _kalOk = null;
     });
+  }
+
+
+  Future<void> _einstellungen() async {
+    setState(() => _einstellungenOffen = true);
+    await showDialog<void>(
+      context: context,
+      useSafeArea: false,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setD) => Dialog.fullscreen(
+          backgroundColor: _kBg,
+          // Auch die Einstellungen werden in den Seitenlagen mitgedreht.
+          child: SafeArea(
+            child: RotatedBox(
+              quarterTurns: _modus.viertelDrehungen,
+              child: EinstellungenInhalt(
+                modus: _modus,
+                auto: _auto,
+                onAuto: (v) {
+                  setState(() {
+                    _auto = v;
+                    _umschalter.setze(_modus);
+                  });
+                  setD(() {});
+                },
+                onModus: (neu) {
+                  _modusWaehlen(neu);
+                  Navigator.pop(c);
+                },
+                onSchliessen: () => Navigator.pop(c),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (mounted) setState(() => _einstellungenOffen = false);
   }
 
   @override
@@ -252,228 +256,475 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
       }
     }
 
-    final koerper = <Widget>[
-      _Umschalter(modus: m, linie: _linie, onChanged: _modusWaehlen),
-      const SizedBox(height: 8),
-      _AutoSchalter(
-        an: _auto,
-        onChanged: (v) => setState(() {
-          _auto = v;
-          _umschalter.setze(_modus);
-        }),
-      ),
-      const SizedBox(height: 10),
-      Text(m.name2, style: const TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 15)),
-      const SizedBox(height: 2),
-      Text(m.anleitung, style: const TextStyle(color: _kText2, fontSize: 13)),
-      const SizedBox(height: 4),
-      Text(
-        !_hatWerte
-            ? 'Warte auf Sensor …'
-            : (lageOk ? 'Handy liegt in der Lage dieser Betriebsart' : 'Handy liegt nicht in dieser Lage'),
-        style: TextStyle(color: (_hatWerte && !lageOk) ? const Color(0xFFFFD27A) : _kText2, fontSize: 12),
-      ),
-      const SizedBox(height: 12),
-      if (_fehler != null)
-        _Karte(child: Text(_fehler!, style: const TextStyle(color: _kText)))
-      else if (m.istFlaeche)
-        ..._flaecheAnsicht(n, lageOk)
-      else
-        ..._linieAnsicht(m, l, lageOk),
-      const SizedBox(height: 12),
-      _kalibrierung(kal),
-      const SizedBox(height: 12),
-      const _Karte(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.info_outline, color: _kText2, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Hinweis zur Messung', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
-              SizedBox(height: 4),
-              Text(_kHinweis, style: TextStyle(color: _kText2)),
-            ]),
-          ),
-        ]),
-      ),
-    ];
-
-    final drehung = m.viertelDrehungen;
-    if (drehung == 0) {
-      return Scaffold(
-        backgroundColor: _kBg,
-        appBar: AppBar(
-          title: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Wasserwaage'),
-              Text('Digitaler Nivellierer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
-            ],
-          ),
-          centerTitle: true,
-          actions: [IconButton(icon: const Icon(Icons.help_outline), tooltip: 'Hilfe', onPressed: _hilfe)],
-        ),
-        body: ListView(padding: const EdgeInsets.all(16), children: koerper),
-      );
-    }
-
-    // Seitenlage: Die Oberfläche wird gedreht, damit sie in dieser Lage aufrecht lesbar ist
-    // (linke Seite: Oberkante zeigt nach links → Drehung im Uhrzeigersinn; rechte Seite: umgekehrt).
+    // Seitenlage: Die ganze Oberfläche (Skala, Texte, Tasten) wird gedreht, damit sie in dieser Lage
+    // aufrecht lesbar ist (linke Seite: Oberkante zeigt nach links → Drehung im Uhrzeigersinn;
+    // rechte Seite: umgekehrt). In der gedrehten Ansicht ist der Platz breit und flach (Querformat-Layout).
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
         child: RotatedBox(
-          quarterTurns: drehung,
-          child: Column(
-            children: [
-              Row(children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: _kText),
-                  tooltip: 'Zurück',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-                const Expanded(
-                  child: Text('Wasserwaage – Digitaler Nivellierer',
-                      style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 16)),
-                ),
-                IconButton(
-                    icon: const Icon(Icons.help_outline, color: _kText), tooltip: 'Hilfe', onPressed: _hilfe),
-              ]),
-              Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: koerper)),
-            ],
+          quarterTurns: m.viertelDrehungen,
+          child: WasserwaageAnsicht(
+            modus: m,
+            neigung: n,
+            linie: l,
+            lageOk: lageOk,
+            hatWerte: _hatWerte,
+            fehler: _fehler,
+            kalibriert: kal != null,
+            kalLaeuft: _kalLaeuft,
+            kalOk: _kalOk,
+            kalMeldung: _kalMeldung,
+            onKalibrieren: (_hatWerte && !_kalLaeuft) ? _kalibrierenStart : null,
+            onZuruecksetzen: (_kals.isNotEmpty && !_kalLaeuft) ? _zuruecksetzen : null,
+            onEinstellungen: _einstellungen,
+            onZurueck: () => Navigator.of(context).maybePop(),
           ),
         ),
       ),
     );
   }
+}
 
-  // ───────── Fläche (2D) ─────────
-  List<Widget> _flaecheAnsicht(Neigung? n, bool lageOk) {
-    final Neigung? m = (n != null && n.gueltig && lageOk) ? n : null;
-    return [
-      Center(
-        child: Text(
-          m == null ? 'X – / Y –' : 'X ${zahl(m.aGrad)}° / Y ${zahl(m.bGrad)}°',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern),
-        ),
-      ),
-      const SizedBox(height: 10),
-      LayoutBuilder(builder: (context, c) {
-        final d = math.min(c.maxWidth, 420.0);
-        return Center(
-          child: SizedBox(
-            width: d,
-            height: d,
-            child: CustomPaint(size: Size(d, d), painter: FlaechePainter(neigung: m)),
+// ───────────────────────── Hauptansicht (kompakt, ohne Scrollen) ─────────────────────────
+
+String _modusKurz(Modus m) => switch (m) {
+      Modus.flaeche => 'FLÄCHE (2D)',
+      Modus.linieDisplay => 'LINIE · DISPLAY VORNE',
+      Modus.linieLinks => 'LINIE · LINKE SEITE',
+      Modus.linieRechts => 'LINIE · RECHTE SEITE',
+    };
+
+String _lageHinweis(Modus m) => switch (m) {
+      Modus.flaeche => 'Handy flach auf den Rücken legen',
+      Modus.linieDisplay => 'Handy aufrecht, Display zum Benutzer',
+      Modus.linieLinks => 'Handy auf die linke Seite stellen',
+      Modus.linieRechts => 'Handy auf die rechte Seite stellen',
+    };
+
+/// Die Messansicht: Kopf (Name, aktuelle Betriebsart, ⚙), Hauptbereich mit der Messung,
+/// Fuß (Kalibrieren). Kein Scrollen, nichts kann überlaufen: Der Hauptbereich teilt sich den
+/// verfügbaren Platz selbst ein. Rein darstellend – alle Werte kommen fertig von außen.
+class WasserwaageAnsicht extends StatelessWidget {
+  const WasserwaageAnsicht({
+    super.key,
+    required this.modus,
+    required this.neigung,
+    required this.linie,
+    required this.lageOk,
+    required this.hatWerte,
+    this.fehler,
+    required this.kalibriert,
+    required this.kalLaeuft,
+    this.kalOk,
+    this.kalMeldung,
+    this.onKalibrieren,
+    this.onZuruecksetzen,
+    this.onEinstellungen,
+    this.onZurueck,
+  });
+
+  final Modus modus;
+  final Neigung? neigung;
+  final Linienmessung? linie;
+  final bool lageOk;
+  final bool hatWerte;
+  final String? fehler;
+  final bool kalibriert;
+  final bool kalLaeuft;
+  final String? kalOk;
+  final String? kalMeldung;
+  final VoidCallback? onKalibrieren;
+  final VoidCallback? onZuruecksetzen; // null: Zurücksetzen wird nicht angezeigt
+  final VoidCallback? onEinstellungen;
+  final VoidCallback? onZurueck;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final breit = c.maxWidth >= c.maxHeight;
+      return Column(children: [
+        _Kopf(modus: modus, onEinstellungen: onEinstellungen, onZurueck: onZurueck),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
+            child: fehler != null
+                ? Center(child: _Karte(child: Text(fehler!, style: const TextStyle(color: _kText))))
+                : (modus.istFlaeche ? _flaeche(breit) : _linie(breit)),
           ),
-        );
-      }),
-      const SizedBox(height: 10),
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: _AchsenKachel(titel: 'X (links/rechts)', grad: m?.aGrad, steigung: m?.sx)),
-        const SizedBox(width: 10),
-        Expanded(child: _AchsenKachel(titel: 'Y (vorne/hinten)', grad: m?.bGrad, steigung: m?.sy)),
-      ]),
-      const SizedBox(height: 10),
-      _Banner(n: m),
-    ];
+        ),
+        _Fuss(
+          breit: breit,
+          kalibriert: kalibriert,
+          kalLaeuft: kalLaeuft,
+          kalOk: kalOk,
+          kalMeldung: kalMeldung,
+          onKalibrieren: onKalibrieren,
+          onZuruecksetzen: onZuruecksetzen,
+        ),
+      ]);
+    });
+  }
+
+  // Status/Richtungsfeld: (Text, Zusatz, waagerecht, Warnung)
+  ({String text, String? unter, bool waagerecht, bool warn}) _status(String? richtung, String? unterOk) {
+    if (richtung != null) {
+      return (text: richtung, unter: unterOk, waagerecht: richtung.toUpperCase() == 'WAAGERECHT', warn: false);
+    }
+    if (!hatWerte) return (text: 'WARTE AUF SENSOR', unter: null, waagerecht: false, warn: false);
+    if (!lageOk) return (text: 'NICHT IN LAGE', unter: _lageHinweis(modus), waagerecht: false, warn: true);
+    return (text: '–', unter: null, waagerecht: false, warn: false);
   }
 
   // ───────── Linie (1D) ─────────
-  List<Widget> _linieAnsicht(Modus modus, Linienmessung? l, bool lageOk) {
+  Widget _linie(bool breit) {
+    final l = linie;
     final Linienmessung? m = (l != null && l.gueltig && lageOk) ? l : null;
-    final grad = m?.grad ?? 0.0;
-    final text = m == null ? '–' : linienRichtung(m).toUpperCase();
-    final waagerecht = m != null && text == 'WAAGERECHT';
-    return [
-      Center(
-        child: Text(m == null ? '–' : '${zahl(grad)}°',
-            style: const TextStyle(fontSize: 64, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+    final st = _status(m == null ? null : linienRichtung(m).toUpperCase(), null);
+    final skala = CustomPaint(
+      painter: SkalaPainter(grad: m?.grad ?? 0.0, aktiv: m != null),
+      child: const SizedBox.expand(),
+    );
+    final winkel = Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(m == null ? '–' : '${zahl(m.grad)}°',
+            key: const Key('winkel'),
+            style: const TextStyle(fontSize: 120, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
       ),
-      Center(
-        child: Text(
-          m == null ? '–' : '${zahl(m.prozent)} %   |   ${zahl(m.mmProM, 0)} mm/m',
-          style: const TextStyle(fontSize: 19, color: _kText, fontFeatures: _ziffern),
+    );
+    final werte = Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Expanded(child: _Wert(label: 'Gefälle', wert: m == null ? '–' : '${zahl(m.prozent)} %')),
+      const SizedBox(width: 8),
+      Expanded(child: _Wert(label: 'Gefälle', wert: m == null ? '–' : '${zahl(m.mmProM, 0)} mm/m')),
+    ]);
+    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
+    if (breit) {
+      return Row(children: [
+        Expanded(flex: 6, child: skala),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 5,
+          child: Column(children: [
+            Expanded(flex: 5, child: winkel),
+            Expanded(flex: 3, child: banner),
+            const SizedBox(height: 8),
+            Expanded(flex: 3, child: werte),
+          ]),
         ),
-      ),
-      const SizedBox(height: 12),
-      SizedBox(
-        height: 120,
-        child: CustomPaint(
-          painter: SkalaPainter(grad: grad, aktiv: m != null),
-          child: const SizedBox.expand(),
-        ),
-      ),
-      const SizedBox(height: 6),
-      Center(child: Text(modus.achseText, style: const TextStyle(color: _kText2, fontSize: 12))),
+      ]);
+    }
+    return Column(children: [
+      Expanded(flex: 5, child: skala),
+      Expanded(flex: 4, child: winkel),
+      Expanded(flex: 2, child: banner),
       const SizedBox(height: 8),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: waagerecht ? const Color(0xFF123F27) : const Color(0xFFDCE8FB),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: waagerecht ? _kGruen : const Color(0xFF9DB9E6)),
-        ),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 22,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w800,
-                color: waagerecht ? _kText : const Color(0xFF0B2A5B))),
-      ),
-    ];
+      Expanded(flex: 2, child: werte),
+    ]);
   }
 
-  Widget _kalibrierung(ModusKalibrierung? kal) {
-    return _Karte(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (_kalLaeuft)
-          const Row(children: [
-            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _kText)),
-            SizedBox(width: 10),
-            Expanded(child: Text('Kalibrierung läuft – Handy ruhig halten …', style: TextStyle(color: _kText))),
-          ])
-        else if (_kalOk != null)
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.verified_outlined, color: _kGruen, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Kalibrierung abgeschlossen\n($_kalOk)', style: const TextStyle(color: _kText))),
-          ])
-        else if (kal != null)
-          const Text('Kalibriert (diese Betriebsart)', style: TextStyle(color: _kText))
-        else
-          const Text('Nicht kalibriert (diese Betriebsart)', style: TextStyle(color: _kText2)),
-        if (_kalMeldung != null) ...[
-          const SizedBox(height: 8),
-          Text(_kalMeldung!, style: const TextStyle(color: Color(0xFFFFB4A9))),
-        ],
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: _kBlau, padding: const EdgeInsets.symmetric(vertical: 14)),
-              onPressed: (_hatWerte && !_kalLaeuft) ? _kalibrierenStart : null,
-              icon: const Icon(Icons.my_location),
-              label: const Text('Kalibrieren'),
-            ),
-          ),
+  // ───────── Fläche (2D) ─────────
+  Widget _flaeche(bool breit) {
+    final nn = neigung;
+    final Neigung? m = (nn != null && nn.gueltig && lageOk) ? nn : null;
+    final st = _status(m == null ? null : richtungsText(m),
+        m == null ? null : 'Neigung gemessen: ${zahl(m.gesamtGrad)}°');
+    Widget panel(double d) => SizedBox(
+          width: d,
+          height: d,
+          child: CustomPaint(size: Size(d, d), painter: FlaechePainter(neigung: m)),
+        );
+    final karten = Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Expanded(child: _AchsenKachel(titel: 'X (links/rechts)', grad: m?.aGrad, steigung: m?.sx)),
+      const SizedBox(width: 8),
+      Expanded(child: _AchsenKachel(titel: 'Y (vorne/hinten)', grad: m?.bGrad, steigung: m?.sy)),
+    ]);
+    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
+
+    return LayoutBuilder(builder: (context, c) {
+      if (breit) {
+        final d = math.min(c.maxHeight, c.maxWidth * 0.6);
+        return Row(children: [
+          panel(d),
           const SizedBox(width: 10),
           Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _kText,
-                side: const BorderSide(color: _kRand),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: (_kals.isNotEmpty && !_kalLaeuft) ? _zuruecksetzen : null,
-              icon: const Icon(Icons.restart_alt),
-              label: const Text('Zurücksetzen'),
+            child: Column(children: [
+              Expanded(flex: 3, child: karten),
+              const SizedBox(height: 8),
+              Expanded(flex: 2, child: banner),
+            ]),
+          ),
+        ]);
+      }
+      // Hochformat: das Quadrat so groß wie möglich, darunter X/Y und Richtung.
+      final d = math.min(c.maxWidth, math.max(100.0, c.maxHeight - 150));
+      return Column(children: [
+        panel(d),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 210),
+              child: Column(children: [
+                Expanded(flex: 3, child: karten),
+                const SizedBox(height: 8),
+                Expanded(flex: 2, child: banner),
+              ]),
             ),
           ),
+        ),
+      ]);
+    });
+  }
+}
+
+class _Kopf extends StatelessWidget {
+  const _Kopf({required this.modus, this.onEinstellungen, this.onZurueck});
+  final Modus modus;
+  final VoidCallback? onEinstellungen;
+  final VoidCallback? onZurueck;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 52,
+        child: Row(children: [
+          IconButton(
+              icon: const Icon(Icons.arrow_back, color: _kText), tooltip: 'Zurück', onPressed: onZurueck),
+          Expanded(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Wasserwaage',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _kText, fontWeight: FontWeight.w800, fontSize: 18, height: 1.1)),
+              Text(_modusKurz(modus),
+                  key: const Key('modusLabel'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: _kText2, fontWeight: FontWeight.w700, fontSize: 11, letterSpacing: 1, height: 1.2)),
+            ]),
+          ),
+          IconButton(
+              icon: const Icon(Icons.settings_outlined, color: _kText),
+              tooltip: 'Einstellungen',
+              onPressed: onEinstellungen),
         ]),
-      ]),
+      );
+}
+
+class _Fuss extends StatelessWidget {
+  const _Fuss({
+    required this.breit,
+    required this.kalibriert,
+    required this.kalLaeuft,
+    required this.kalOk,
+    required this.kalMeldung,
+    required this.onKalibrieren,
+    required this.onZuruecksetzen,
+  });
+  final bool breit;
+  final bool kalibriert;
+  final bool kalLaeuft;
+  final String? kalOk;
+  final String? kalMeldung;
+  final VoidCallback? onKalibrieren;
+  final VoidCallback? onZuruecksetzen;
+
+  @override
+  Widget build(BuildContext context) {
+    final String text;
+    var farbe = _kText2;
+    if (kalLaeuft) {
+      text = 'Kalibrierung läuft – Handy ruhig halten …';
+      farbe = _kText;
+    } else if (kalMeldung != null) {
+      text = kalMeldung!;
+      farbe = const Color(0xFFFFB4A9);
+    } else if (kalOk != null) {
+      text = 'Kalibriert ✓ ($kalOk)';
+      farbe = _kText;
+    } else if (kalibriert) {
+      text = 'Kalibriert (diese Betriebsart)';
+    } else {
+      text = 'Nicht kalibriert (diese Betriebsart)';
+    }
+    final status = Text(text,
+        key: const Key('kalStatus'),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: breit ? TextAlign.start : TextAlign.center,
+        style: TextStyle(color: farbe, fontSize: 12, height: 1.2));
+
+    Widget label(IconData icon, String t) => FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 18), const SizedBox(width: 6), Text(t)]),
+        );
+    final kalTaste = FilledButton(
+      style: FilledButton.styleFrom(
+          backgroundColor: _kBlau, minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 10)),
+      onPressed: onKalibrieren,
+      child: label(Icons.my_location, 'Kalibrieren'),
+    );
+    final resetTaste = onZuruecksetzen == null
+        ? null
+        : OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: _kText,
+                side: const BorderSide(color: _kRand),
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 10)),
+            onPressed: onZuruecksetzen,
+            child: label(Icons.restart_alt, 'Zurücksetzen'),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: breit
+          ? Row(children: [
+              Expanded(flex: 3, child: status),
+              const SizedBox(width: 10),
+              Expanded(flex: 2, child: kalTaste),
+              if (resetTaste != null) ...[const SizedBox(width: 8), Expanded(flex: 2, child: resetTaste)],
+            ])
+          : Column(mainAxisSize: MainAxisSize.min, children: [
+              status,
+              const SizedBox(height: 6),
+              Row(children: [
+                Expanded(child: kalTaste),
+                if (resetTaste != null) ...[const SizedBox(width: 8), Expanded(child: resetTaste)],
+              ]),
+            ]),
+    );
+  }
+}
+
+// ───────────────────────── Einstellungen ─────────────────────────
+
+/// Inhalt der Einstellungen (hinter ⚙): Automatik, manuelle Betriebsart, Hilfe, Hinweis.
+class EinstellungenInhalt extends StatelessWidget {
+  const EinstellungenInhalt({
+    super.key,
+    required this.modus,
+    required this.auto,
+    required this.onAuto,
+    required this.onModus,
+    required this.onSchliessen,
+  });
+  final Modus modus;
+  final bool auto;
+  final ValueChanged<bool> onAuto;
+  final ValueChanged<Modus> onModus;
+  final VoidCallback onSchliessen;
+
+  static const _hilfe =
+      'Die Betriebsart wechselt automatisch, sobald das Handy kurz (ca. 1 Sekunde) ruhig in einer der '
+      'vier Lagen liegt. Kleine Bewegungen lösen keinen Wechsel aus. Wer hier selbst eine Betriebsart '
+      'wählt, schaltet die Automatik aus. Gemessen wird immer nur in der aktuellen Betriebsart.\n\n'
+      'Fläche (2D): Handy flach auf die Rückseite (Display oben). Der Marker zeigt die Neigung in '
+      'zwei Achsen (X nach rechts, Y nach vorne) und steht bei X 0,00° / Y 0,00° genau in der Mitte.\n'
+      'Linie – Display vorne: Handy aufrecht, Display zum Benutzer. Gemessen wird links/rechts '
+      'über die Breite (X-Achse).\n'
+      'Linie – Linke/Rechte Seite: Das Handy steht auf der linken bzw. rechten Seitenkante, Display zum '
+      'Benutzer. Gemessen wird entlang der Längskante (Y-Achse). Die ganze Anzeige wird dafür mitgedreht, '
+      'damit sie in dieser Lage lesbar ist.\n'
+      'Der Marker bewegt sich immer zur höheren Seite. Skala: ±5° (darüber bleibt der Marker am Rand und wird orange).\n\n'
+      'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. Die Lage in '
+      'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die '
+      'aktuelle Betriebsart. „Zurücksetzen“ (erscheint nur, wenn kalibriert wurde) löscht alle.\n\n'
+      'Neigung: Winkel gegen die Senkrechte der Lage. Gefälle %: Höhenunterschied je 100 cm. '
+      'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
+      'Die Anzeige ist linear und verwendet exakt die gemessenen Werte. Die Werte werden mit dem '
+      'Gyroskop geglättet, damit sie nicht springen; im Ruhezustand entspricht der Wert genau der Messung.';
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(children: [
+          const Expanded(
+            child: Text('Einstellungen', style: TextStyle(color: _kText, fontWeight: FontWeight.w800, fontSize: 20)),
+          ),
+          IconButton(
+              icon: const Icon(Icons.close, color: _kText), tooltip: 'Schließen', onPressed: onSchliessen),
+        ]),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+          decoration:
+              BoxDecoration(color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand)),
+          child: Row(children: [
+            const Icon(Icons.screen_rotation_alt_outlined, color: _kText2, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Automatisch umschalten',
+                    style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(
+                  auto
+                      ? 'Die Ansicht wechselt, sobald das Handy kurz ruhig in einer der vier Lagen liegt.'
+                      : 'Aus: Die Betriebsart bleibt, wie Sie sie gewählt haben.',
+                  style: const TextStyle(color: _kText2, fontSize: 12),
+                ),
+              ]),
+            ),
+            Switch(value: auto, onChanged: onAuto),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        const Text('Betriebsart manuell wählen',
+            style: TextStyle(color: _kText2, fontWeight: FontWeight.w700, fontSize: 13)),
+        const SizedBox(height: 6),
+        for (final m in Modus.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              key: Key('modus_${m.name}'),
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => onModus(m),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: m == modus ? _kBlau : _kKarte,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: m == modus ? Colors.white : _kRand),
+                ),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(m.name2, style: const TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 15)),
+                      const SizedBox(height: 2),
+                      Text(m.anleitung, style: const TextStyle(color: _kText2, fontSize: 12)),
+                    ]),
+                  ),
+                  if (m == modus) const Icon(Icons.check_circle, color: _kText),
+                ]),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        const _Karte(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Hilfe', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
+            SizedBox(height: 6),
+            Text(_hilfe, style: TextStyle(color: _kText2, fontSize: 13)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        const _Karte(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, color: _kText2, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Hinweis zur Messung', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
+                SizedBox(height: 4),
+                Text(_kHinweis, style: TextStyle(color: _kText2)),
+              ]),
+            ),
+          ]),
+        ),
+      ],
     );
   }
 }
@@ -497,84 +748,30 @@ class _Karte extends StatelessWidget {
       );
 }
 
-class _Umschalter extends StatelessWidget {
-  const _Umschalter({required this.modus, required this.linie, required this.onChanged});
-  final Modus modus;
-  final Modus linie;
-  final ValueChanged<Modus> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget tab(String text, bool aktiv, VoidCallback tap, {double size = 15}) => Expanded(
-          child: GestureDetector(
-            onTap: tap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: aktiv ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(text,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: size, fontWeight: FontWeight.w700, color: aktiv ? const Color(0xFF0B2A5B) : _kText)),
-            ),
-          ),
-        );
-    BoxDecoration rahmen() =>
-        BoxDecoration(color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand));
-    return Column(children: [
-      Container(
-        padding: const EdgeInsets.all(4),
-        decoration: rahmen(),
-        child: Row(children: [
-          tab('Fläche (2D)', modus.istFlaeche, () => onChanged(Modus.flaeche)),
-          tab('Linie (1D)', !modus.istFlaeche, () => onChanged(linie)),
-        ]),
-      ),
-      if (!modus.istFlaeche) ...[
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: rahmen(),
-          child: Row(children: [
-            for (final m in [Modus.linieDisplay, Modus.linieLinks, Modus.linieRechts])
-              tab(m.name2, modus == m, () => onChanged(m), size: 13),
-          ]),
-        ),
-      ],
-    ]);
-  }
-}
-
-class _AutoSchalter extends StatelessWidget {
-  const _AutoSchalter({required this.an, required this.onChanged});
-  final bool an;
-  final ValueChanged<bool> onChanged;
+/// Kachel mit einem Wert; füllt den gegebenen Platz, Inhalt passt sich per FittedBox an.
+class _Wert extends StatelessWidget {
+  const _Wert({required this.label, required this.wert});
+  final String label;
+  final String wert;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-            color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand)),
-        child: Row(children: [
-          const Icon(Icons.screen_rotation_alt_outlined, color: _kText2, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Automatisch umschalten',
-                  style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 14)),
-              Text(
-                an
-                    ? 'Die Ansicht wechselt, sobald das Handy kurz ruhig in einer der vier Lagen liegt.'
-                    : 'Aus: Die Betriebsart bleibt, wie Sie sie gewählt haben.',
-                style: const TextStyle(color: _kText2, fontSize: 12),
-              ),
+          color: _kKarte,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kRand.withValues(alpha: 0.6)),
+        ),
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(label, style: const TextStyle(color: _kText2, fontSize: 13)),
+              Text(wert,
+                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
             ]),
           ),
-          Switch(value: an, onChanged: onChanged),
-        ]),
+        ),
       );
 }
 
@@ -587,55 +784,57 @@ class _AchsenKachel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = grad, s = steigung;
-    return _Karte(
-      child: Column(children: [
-        Text(titel, style: const TextStyle(color: _kText2, fontSize: 13)),
-        const SizedBox(height: 4),
-        Text(g == null ? '–' : '${zahl(g)}°',
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
-        const SizedBox(height: 2),
-        Text(s == null ? '–' : '${zahl(s * 100, 1)} %',
-            style: const TextStyle(color: _kText, fontSize: 14, fontFeatures: _ziffern)),
-        Text(s == null ? '–' : '${zahl(s * 1000, 0)} mm/m',
-            style: const TextStyle(color: _kText, fontSize: 14, fontFeatures: _ziffern)),
-      ]),
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: _kKarte,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kRand.withValues(alpha: 0.6)),
+      ),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(titel, style: const TextStyle(color: _kText2, fontSize: 13)),
+            Text(g == null ? '–' : '${zahl(g)}°',
+                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
+            Text(s == null ? '–' : '${zahl(s * 100, 1)} %  ·  ${zahl(s * 1000, 0)} mm/m',
+                style: const TextStyle(color: _kText, fontSize: 14, fontFeatures: _ziffern)),
+          ]),
+        ),
+      ),
     );
   }
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.n});
-
-  /// null, wenn kein gültiger Messwert vorliegt.
-  final Neigung? n;
+/// Richtungsfeld (WAAGERECHT / LINKS HÖHER / …); füllt den gegebenen Platz.
+class _Status extends StatelessWidget {
+  const _Status({required this.text, required this.unter, required this.waagerecht, required this.warn});
+  final String text;
+  final String? unter;
+  final bool waagerecht;
+  final bool warn;
 
   @override
   Widget build(BuildContext context) {
-    final neigung = n;
-    final text = neigung == null ? '–' : richtungsText(neigung);
-    final waagerecht = neigung != null && text == 'Waagerecht';
-    final unter = neigung == null ? 'Warte auf Messwert' : 'Neigung gemessen: ${zahl(neigung.gesamtGrad)}°';
+    final Color bg = waagerecht ? const Color(0xFF123F27) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
+    final Color rand = waagerecht ? _kGruen : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
+    final Color tx = (waagerecht || warn) ? _kText : const Color(0xFF0B2A5B);
+    final Color tx2 = (waagerecht || warn) ? _kText2 : const Color(0xFF28446F);
     return Container(
+      key: const Key('status'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: waagerecht ? const Color(0xFF123F27) : const Color(0xFFDCE8FB),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: waagerecht ? _kGruen : const Color(0xFF9DB9E6)),
-      ),
-      child: Row(children: [
-        Icon(waagerecht ? Icons.check_circle : Icons.explore_outlined,
-            size: 30, color: waagerecht ? _kGruen : const Color(0xFF0B4A9F)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(text,
-                style: TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w800, color: waagerecht ? _kText : const Color(0xFF0B2A5B))),
-            Text(unter, style: TextStyle(fontSize: 13, color: waagerecht ? _kText2 : const Color(0xFF28446F))),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: rand)),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(text, style: TextStyle(fontSize: 26, letterSpacing: 1.2, fontWeight: FontWeight.w800, color: tx)),
+            if (unter != null) Text(unter!, style: TextStyle(fontSize: 13, color: tx2)),
           ]),
         ),
-      ]),
+      ),
     );
   }
 }
@@ -659,6 +858,7 @@ double skalaAnteil(double grad) => (grad / _kSkala).clamp(-1.0, 1.0);
   }
   return (x: xGrad / _kSkala, y: yGrad / _kSkala, ausserhalb: false);
 }
+
 const _kOrange = Color(0xFFFFA24A);
 
 void _beschriften(Canvas canvas, String text, Offset pos,
@@ -673,7 +873,8 @@ void _beschriften(Canvas canvas, String text, Offset pos,
 }
 
 /// Digitale Skala (1D): −5° … +5°, Marker bewegt sich linear mit dem Messwert.
-/// Bei exakt 0° steht der Marker genau in der Mitte.
+/// Bei exakt 0° steht der Marker genau in der Mitte. Alle Maße richten sich nach der
+/// verfügbaren Größe (die Skala füllt ihren Platz).
 class SkalaPainter extends CustomPainter {
   SkalaPainter({required this.grad, required this.aktiv});
   final double grad;
@@ -682,6 +883,8 @@ class SkalaPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
+    final u = math.max(1.0, math.min(h, w * 0.55)); // Bezugsgröße für alle Maße
+    final k = (u / 150).clamp(0.7, 2.2).toDouble(); // Strichstärken
     final box = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, h), const Radius.circular(14));
     canvas.drawRRect(box, Paint()..color = _kKarte);
     canvas.drawRRect(
@@ -691,19 +894,21 @@ class SkalaPainter extends CustomPainter {
           ..strokeWidth = 1
           ..color = _kRand);
 
-    const rand = 28.0;
+    final rand = w * 0.07;
     final x0 = rand, x1 = w - rand;
     final cx = (x0 + x1) / 2;
-    final achseY = h * 0.62;
+    final achseY = h * 0.52;
     double xAt(double g) => cx + (g / _kSkala) * (x1 - x0) / 2;
 
     // Kopfzeile: Richtung der Seiten.
-    _beschriften(canvas, '◀ LINKS HÖHER', Offset(14, 14), size: 11, anker: Alignment.centerLeft);
-    _beschriften(canvas, 'RECHTS HÖHER ▶', Offset(w - 14, 14), size: 11, anker: Alignment.centerRight);
+    final kopfSize = (u * 0.055).clamp(9.0, 16.0).toDouble();
+    final kopfY = achseY - u * 0.40;
+    _beschriften(canvas, '◀ LINKS HÖHER', Offset(w * 0.04, kopfY), size: kopfSize, anker: Alignment.centerLeft);
+    _beschriften(canvas, 'RECHTS HÖHER ▶', Offset(w * 0.96, kopfY), size: kopfSize, anker: Alignment.centerRight);
 
     final achse = Paint()
       ..color = _kText2
-      ..strokeWidth = 2;
+      ..strokeWidth = 2 * k;
     canvas.drawLine(Offset(x0, achseY), Offset(x1, achseY), achse);
 
     // Teilstriche: alle 0,5°, groß bei −5, −2,5, 0, +2,5, +5.
@@ -711,20 +916,21 @@ class SkalaPainter extends CustomPainter {
       final g = i * 0.5;
       final gross = i % 5 == 0;
       final null0 = i == 0;
-      final len = null0 ? 26.0 : (gross ? 18.0 : 8.0);
+      final len = u * (null0 ? 0.24 : (gross ? 0.16 : 0.07));
       canvas.drawLine(
         Offset(xAt(g), achseY),
         Offset(xAt(g), achseY + len),
         Paint()
           ..color = null0 ? _kLimeMitte : _kText2
-          ..strokeWidth = null0 ? 3 : (gross ? 2 : 1),
+          ..strokeWidth = (null0 ? 3 : (gross ? 2 : 1)) * k,
       );
     }
+    final labelSize = (u * 0.075).clamp(10.0, 22.0).toDouble();
     const marken = <double>[-5, -2.5, 0, 2.5, 5];
     for (final g in marken) {
       final t = g == 0 ? '0°' : '${g > 0 ? '+' : '−'}${zahl(g.abs(), g.abs() == 2.5 ? 1 : 0)}°';
-      _beschriften(canvas, t, Offset(xAt(g), achseY + 38),
-          color: g == 0 ? _kText : _kText2, size: 13, weight: g == 0 ? FontWeight.w800 : FontWeight.w600);
+      _beschriften(canvas, t, Offset(xAt(g), achseY + u * 0.24 + labelSize * 1.0),
+          color: g == 0 ? _kText : _kText2, size: labelSize, weight: g == 0 ? FontWeight.w800 : FontWeight.w600);
     }
 
     // Marker.
@@ -733,25 +939,32 @@ class SkalaPainter extends CustomPainter {
     final farbe = !aktiv
         ? const Color(0xFF8E99AB)
         : (ausserhalb ? _kOrange : (zahl(grad) == '0,00' ? _kGruen : Colors.white));
-    canvas.drawLine(Offset(mx, 30), Offset(mx, achseY), Paint()
-      ..color = farbe.withValues(alpha: 0.55)
-      ..strokeWidth = 2);
+    final triTop = achseY - u * 0.30;
+    final triH = u * 0.10, triB = u * 0.045;
+    canvas.drawLine(
+        Offset(mx, triTop),
+        Offset(mx, achseY),
+        Paint()
+          ..color = farbe.withValues(alpha: 0.55)
+          ..strokeWidth = 2 * k);
     final dreieck = Path()
-      ..moveTo(mx - 10, 30)
-      ..lineTo(mx + 10, 30)
-      ..lineTo(mx, 46)
+      ..moveTo(mx - triB, triTop)
+      ..lineTo(mx + triB, triTop)
+      ..lineTo(mx, triTop + triH)
       ..close();
     canvas.drawPath(dreieck, Paint()..color = farbe);
-    canvas.drawCircle(Offset(mx, achseY), 9, Paint()..color = farbe);
+    final r = (u * 0.05).clamp(7.0, 18.0).toDouble();
+    canvas.drawCircle(Offset(mx, achseY), r, Paint()..color = farbe);
     canvas.drawCircle(
         Offset(mx, achseY),
-        9,
+        r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
+          ..strokeWidth = 2.5 * k
           ..color = _kBg);
     if (aktiv && ausserhalb) {
-      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(cx, 14), color: _kOrange, size: 11, weight: FontWeight.w700);
+      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(cx, kopfY),
+          color: _kOrange, size: kopfSize, weight: FontWeight.w700);
     }
   }
 
@@ -761,6 +974,7 @@ class SkalaPainter extends CustomPainter {
 
 /// Digitale Fläche (2D): X/Y in Grad, Skala ±5°, Marker bewegt sich linear mit
 /// den Messwerten (X nach rechts, Y nach oben = vorne). Exakt in der Mitte bei X 0,00° / Y 0,00°.
+/// Die Fläche ist quadratisch (Seitenlänge = kleinere Seite der Zeichenfläche); alle Maße skalieren mit.
 class FlaechePainter extends CustomPainter {
   FlaechePainter({required this.neigung});
   final Neigung? neigung; // null: kein gültiger Messwert
@@ -769,7 +983,9 @@ class FlaechePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final n = neigung;
     final aktiv = n != null;
-    final w = size.width;
+    final w = math.max(1.0, math.min(size.width, size.height));
+    final f = (w * 0.033).clamp(9.0, 16.0).toDouble(); // Schriftgröße
+    final k = (w / 300).clamp(0.7, 2.0).toDouble(); // Strichstärken
     final box = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, w), const Radius.circular(16));
     canvas.drawRRect(box, Paint()..color = _kKarte);
     canvas.drawRRect(
@@ -779,7 +995,7 @@ class FlaechePainter extends CustomPainter {
           ..strokeWidth = 1
           ..color = _kRand);
 
-    const rand = 36.0;
+    final rand = math.max(w * 0.115, f * 3.0);
     final feld = Rect.fromLTWH(rand, rand, w - 2 * rand, w - 2 * rand);
     final mitte = feld.center;
     final halb = feld.width / 2;
@@ -787,7 +1003,7 @@ class FlaechePainter extends CustomPainter {
     double py(double g) => mitte.dy - g / _kSkala * halb;
 
     canvas.drawRect(feld, Paint()..color = const Color(0xFF0A2149));
-    // Raster: alle 1°, kräftiger bei 0, ±2,5, ±5.
+    // Raster: alle 1°, kräftiger bei ±2,5.
     for (var i = -5; i <= 5; i++) {
       final fein = Paint()
         ..strokeWidth = 1
@@ -796,7 +1012,7 @@ class FlaechePainter extends CustomPainter {
       canvas.drawLine(Offset(feld.left, py(i.toDouble())), Offset(feld.right, py(i.toDouble())), fein);
     }
     final kraeftig = Paint()
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.5 * k
       ..color = _kText2.withValues(alpha: 0.8);
     for (final g in const [-2.5, 2.5]) {
       canvas.drawLine(Offset(px(g), feld.top), Offset(px(g), feld.bottom), kraeftig);
@@ -806,11 +1022,11 @@ class FlaechePainter extends CustomPainter {
         feld,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = 2 * k
           ..color = _kText2);
     // Achsenkreuz und Mittenring.
     final kreuz = Paint()
-      ..strokeWidth = 2.5
+      ..strokeWidth = 2.5 * k
       ..color = Colors.white;
     canvas.drawLine(Offset(feld.left, mitte.dy), Offset(feld.right, mitte.dy), kreuz);
     canvas.drawLine(Offset(mitte.dx, feld.top), Offset(mitte.dx, feld.bottom), kreuz);
@@ -819,19 +1035,19 @@ class FlaechePainter extends CustomPainter {
         halb * 0.06,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = 2 * k
           ..color = _kLimeMitte);
 
     // Beschriftung der Skala und der Seiten.
     for (final g in const [-5.0, -2.5, 0.0, 2.5, 5.0]) {
       final t = g == 0 ? '0°' : '${g > 0 ? '+' : '−'}${zahl(g.abs(), g.abs() == 2.5 ? 1 : 0)}°';
-      _beschriften(canvas, t, Offset(px(g), feld.bottom + 10), size: 11);
-      _beschriften(canvas, t, Offset(feld.left - 6, py(g)), size: 11, anker: Alignment.centerRight);
+      _beschriften(canvas, t, Offset(px(g), feld.bottom + f * 0.9), size: f);
+      _beschriften(canvas, t, Offset(feld.left - f * 0.5, py(g)), size: f, anker: Alignment.centerRight);
     }
-    _beschriften(canvas, 'VORNE', Offset(mitte.dx, 11), size: 11, weight: FontWeight.w800);
-    _beschriften(canvas, 'HINTEN', Offset(mitte.dx, w - 11), size: 11, weight: FontWeight.w800);
-    _beschriften(canvas, 'LINKS', Offset(6, w - 11), size: 11, weight: FontWeight.w800, anker: Alignment.centerLeft);
-    _beschriften(canvas, 'RECHTS', Offset(w - 6, w - 11), size: 11, weight: FontWeight.w800, anker: Alignment.centerRight);
+    _beschriften(canvas, 'VORNE', Offset(mitte.dx, f * 0.9), size: f, weight: FontWeight.w800);
+    _beschriften(canvas, 'HINTEN', Offset(mitte.dx, w - f * 0.9), size: f, weight: FontWeight.w800);
+    _beschriften(canvas, 'LINKS', Offset(w * 0.02, w - f * 0.9), size: f, weight: FontWeight.w800, anker: Alignment.centerLeft);
+    _beschriften(canvas, 'RECHTS', Offset(w * 0.98, w - f * 0.9), size: f, weight: FontWeight.w800, anker: Alignment.centerRight);
 
     // Marker. Außerhalb der Skala bleibt er am Rand (Richtung bleibt erhalten) und wird orange.
     final fm = flaechenAnteil(n?.aGrad ?? 0.0, n?.bGrad ?? 0.0);
@@ -841,18 +1057,19 @@ class FlaechePainter extends CustomPainter {
     final farbe = nn == null
         ? const Color(0xFF8E99AB)
         : (ausserhalb ? _kOrange : (zahl(nn.aGrad) == '0,00' && zahl(nn.bGrad) == '0,00' ? _kGruen : _kLimeMitte));
-    canvas.drawCircle(pos, 15, Paint()..color = farbe.withValues(alpha: 0.28));
-    canvas.drawCircle(pos, 9, Paint()..color = farbe);
+    final r = (w * 0.03).clamp(7.0, 17.0).toDouble();
+    canvas.drawCircle(pos, r * 1.65, Paint()..color = farbe.withValues(alpha: 0.28));
+    canvas.drawCircle(pos, r, Paint()..color = farbe);
     canvas.drawCircle(
         pos,
-        9,
+        r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
+          ..strokeWidth = 2.5 * k
           ..color = _kBg);
     if (aktiv && ausserhalb) {
-      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(feld.right - 4, feld.top + 12),
-          color: _kOrange, size: 11, weight: FontWeight.w700, anker: Alignment.centerRight);
+      _beschriften(canvas, 'außerhalb ±${zahl(_kSkala, 0)}°', Offset(feld.right - 4, feld.top + f * 1.1),
+          color: _kOrange, size: f, weight: FontWeight.w700, anker: Alignment.centerRight);
     }
   }
 
