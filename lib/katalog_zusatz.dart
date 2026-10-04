@@ -337,9 +337,6 @@ void _heizung(KatalogBaukasten b) {
     'Rücklaufanhebung',
     'Thermische Ablaufsicherung',
   ], 'Stk.', typ: 'Zubehör');
-  for (final x in const ['25-40', '25-60', '25-80', '25-100', '30-60', '30-80', '32-40', '32-60', '32-80', '40-60', '40-80', '40-120', '50-80', '50-120']) {
-    b.add(k, 'Pumpen', 'Heizkreispumpe', 'Heizkreispumpe $x', 'Stk.', typ: 'Pumpe', stichworte: 'umwälzpumpe heizungspumpe qarkullimi');
-  }
   for (final x in const ['25-40 130 mm', '25-60 130 mm', '25-60 180 mm', '25-80 180 mm', '32-60 180 mm', '32-80 180 mm', '40-60 250 mm', '40-80 250 mm']) {
     b.add(k, 'Pumpen', 'Umwälzpumpe', 'Umwälzpumpe $x', 'Stk.', typ: 'Pumpe', stichworte: 'heizungspumpe qarkullimi');
   }

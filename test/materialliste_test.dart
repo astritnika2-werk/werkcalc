@@ -258,7 +258,7 @@ void main() {
       expect(fam('wc', 6), ['WC', 'WC-Sitz', 'Spülkasten', 'Vorwandelement', 'Drückerplatte', 'WC-Anschluss']);
     });
     test('pompë qarkullimi', () {
-      expect(fam('pompë qarkullimi', 4), ['Umwälzpumpe', 'Zirkulationspumpe', 'Heizkreispumpe', 'Pumpengruppe']);
+      expect(fam('pompë qarkullimi', 3), ['Umwälzpumpe', 'Zirkulationspumpe', 'Pumpengruppe']);
     });
     test('erste Artikel', () {
       expect(erst('gyp'), startsWith('Kupferrohr'));

@@ -511,7 +511,7 @@ const List<String> kFamilienReihenfolge = [
   'Gewindefitting', 'PP-R Fitting', 'HT-Bogen', 'KG-Bogen', 'KG2000-Bogen',
   'HT-Muffe', 'KG-Muffe', 'KG2000-Muffe', 'HT-Abzweig', 'KG-Abzweig',
   // Pumpen
-  'Umwälzpumpe', 'Zirkulationspumpe', 'Heizkreispumpe', 'Pumpengruppe',
+  'Umwälzpumpe', 'Zirkulationspumpe', 'Pumpengruppe',
   // Klima
   'Klimagerät', 'Split-Klimagerät', 'Außengerät', 'Innengerät', 'Multisplit',
   'Kondensatpumpe', 'Kältemittelleitung', 'Verbindungskabel',
