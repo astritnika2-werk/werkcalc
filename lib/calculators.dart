@@ -4,7 +4,7 @@ import 'calc_page.dart';
 import 'logic.dart';
 import 'materialkosten_page.dart';
 import 'pumpen_pruefung_page.dart';
-import 'pumpe_lauf_page.dart';
+import 'messen_pruefen_page.dart';
 import 'vorschlag.dart';
 
 /// Ein Eintrag in der Startseite. [builder] == null bedeutet "bald verfügbar".
@@ -428,9 +428,9 @@ final List<CalcDef> calculators = [
     () => const PumpenPruefungPage(),
   ),
   CalcDef(
-    'Pumpe läuft prüfen',
-    Icons.vibration,
-    () => const PumpeLaufPage(),
+    'Messen & Prüfen',
+    Icons.sensors,
+    () => const MessenPruefenPage(),
   ),
   CalcDef(
     'Liter / m³',
