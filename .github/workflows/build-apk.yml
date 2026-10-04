@@ -48,14 +48,10 @@ jobs:
           fi
           exit $code
 
-      - name: Katalog-Übersicht (zur Prüfung)
-        run: |
-          if [ -f katalog_dump.txt ]; then
-            split -b 48000 -d katalog_dump.txt kd_
-            for f in kd_*; do
-              echo "::notice title=Katalog-$f::$(sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g' $f)"
-            done
-          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: katalog-dump
+          path: katalog_dump.txt
 
       - name: APK bauen (Test-Installation)
         run: |
