@@ -258,6 +258,122 @@ DruckverlustErgebnis berechneDruckverlust({
 }
 
 // ---------------------------------------------------------------------------
+// Umwälzpumpe (Heizung) – Richtwerte
+// ---------------------------------------------------------------------------
+
+/// Standard-Baureihen kleiner Heizungs-Umwälzpumpen: Name = Nennweite-Förderhöhe
+/// (z. B. „25-60“ = DN 25, max. 6,0 m). Nur Typen, die es im Katalog gibt.
+const Map<int, List<(String, double)>> kPumpenTypen = {
+  25: [('25-40', 4), ('25-60', 6), ('25-80', 8)],
+  32: [('32-60', 6), ('32-80', 8)],
+};
+
+/// Anschluss (Gewinde) der Standard-Umwälzpumpen je Nennweite.
+const Map<int, String> kPumpenGewinde = {25: '1½"', 32: '2"'};
+
+/// Reserve: Die Maximalförderhöhe der Pumpe soll etwa das 1,5-fache der
+/// benötigten Förderhöhe betragen (Betriebspunkt im mittleren Kennlinienbereich).
+const double kPumpenReserve = 1.5;
+
+class PumpenAuslegung {
+  const PumpenAuslegung({
+    required this.volumenstromM3h,
+    required this.geschwindigkeit,
+    required this.dpRohrnetzPa,
+    required this.dpGesamtPa,
+    required this.foerderhoeheM,
+    required this.dn,
+    required this.typ,
+    required this.hinweis,
+  });
+
+  final double volumenstromM3h;
+  final double geschwindigkeit;
+  final double dpRohrnetzPa;
+  final double dpGesamtPa;
+
+  /// Benötigte Förderhöhe in m Wassersäule.
+  final double foerderhoeheM;
+
+  /// Empfohlene Nennweite der Pumpe (null: außerhalb der Standard-Kleinpumpen).
+  final int? dn;
+
+  /// Empfohlener Katalog-Typ, z. B. „25-60“ (null: keine Standardpumpe).
+  final String? typ;
+  final String? hinweis;
+}
+
+/// Volumenstrom in m³/h aus Heizleistung (kW) und Spreizung ΔT (K).
+double volumenstromAusLeistung(double kw, double deltaTK, {double temperaturC = 60}) {
+  final rho = wasserEigenschaften(temperaturC).dichte;
+  const cKJkgK = 4.19;
+  return kw * 3600 / (cKJkgK * rho * deltaTK);
+}
+
+/// Richtwert für die Pumpenauswahl. Rohrlänge = Vor- + Rücklauf zusammen.
+/// Gibt null zurück, wenn der Volumenstrom nicht bestimmt werden kann.
+PumpenAuslegung? berechnePumpe({
+  double? volumenstromM3h,
+  double? heizleistungKw,
+  double? deltaTK,
+  required double durchmesserMm,
+  required double laengeM,
+  double zetaSumme = 0,
+  double zusatzMbar = 0,
+  double rauheitMm = 0.0015,
+  double temperaturC = 60,
+}) {
+  double? v = volumenstromM3h;
+  if (v == null || v <= 0) {
+    if (heizleistungKw == null || deltaTK == null || heizleistungKw <= 0 || deltaTK <= 0) {
+      return null;
+    }
+    v = volumenstromAusLeistung(heizleistungKw, deltaTK, temperaturC: temperaturC);
+  }
+  if (durchmesserMm <= 0 || laengeM < 0) return null;
+  final netz = berechneDruckverlust(
+    volumenstromM3s: v / 3600,
+    durchmesserMm: durchmesserMm,
+    laengeM: laengeM,
+    temperaturC: temperaturC,
+    rauheitMm: rauheitMm,
+    zetaSumme: zetaSumme,
+  );
+  final gesamt = netz.dpGesamtPa + zusatzMbar * 100;
+  final rho = wasserEigenschaften(temperaturC).dichte;
+  final h = gesamt / (rho * 9.80665);
+  final bedarf = h * kPumpenReserve;
+  final dn = v <= 3 ? 25 : (v <= 6 ? 32 : null);
+  String? typ;
+  String? hinweis;
+  if (dn == null) {
+    hinweis = 'Volumenstrom über 6 m³/h: größere Pumpe (DN 40 oder mehr) '
+        'nach Herstellerkennlinie wählen.';
+  } else {
+    for (final t in kPumpenTypen[dn]!) {
+      if (t.$2 >= bedarf) {
+        typ = t.$1;
+        break;
+      }
+    }
+    if (typ == null) {
+      hinweis = 'Förderhöhe über den Standard-Kleinpumpen: größere Baureihe '
+          'nach Herstellerkennlinie wählen.';
+    }
+  }
+  return PumpenAuslegung(
+    volumenstromM3h: v,
+    geschwindigkeit: netz.geschwindigkeit,
+    dpRohrnetzPa: netz.dpGesamtPa,
+    dpGesamtPa: gesamt,
+    foerderhoeheM: h,
+    dn: dn,
+    typ: typ,
+    hinweis: hinweis,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Angebot
 // ---------------------------------------------------------------------------
 

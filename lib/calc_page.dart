@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'logic.dart';
+import 'vorschlag.dart';
 
 /// Eine Auswahl-Option (Dropdown); [value] wird als Zahl an die Rechnung gegeben.
 class CalcOption {
@@ -30,6 +31,21 @@ class ResultRow {
   final bool highlight;
 }
 
+/// Materialvorschläge zu den eingegebenen Werten.
+typedef VorschlagFn = List<Vorschlag> Function(List<double?> values);
+
+/// Hinweis „Richtwert“ unter dem Ergebnis.
+const String kRichtwertHinweis =
+    'Richtwert – endgültige Auslegung nach Herstellerangaben und geltenden technischen Regeln.';
+
+/// Weiterführender Schritt (z. B. Druckverlust → Pumpe wählen).
+class CalcWeiter {
+  const CalcWeiter(this.label, this.ziel);
+
+  final String label;
+  final Widget Function(List<double?> values) ziel;
+}
+
 typedef ComputeFn = List<ResultRow> Function(List<double?> values);
 
 /// Generische Rechner-Seite: Eingabefelder oben, Ergebnisse live darunter.
@@ -42,6 +58,9 @@ class CalcPage extends StatefulWidget {
     required this.compute,
     this.requireAll = true,
     this.note,
+    this.vorschlaege,
+    this.richtwert = false,
+    this.weiter,
   });
 
   final String title;
@@ -52,6 +71,11 @@ class CalcPage extends StatefulWidget {
   /// false: sobald mindestens ein Feld gefüllt ist (compute entscheidet).
   final bool requireAll;
   final String? note;
+  final VorschlagFn? vorschlaege;
+
+  /// true: zeigt unter dem Ergebnis den Richtwert-Hinweis.
+  final bool richtwert;
+  final CalcWeiter? weiter;
 
   @override
   State<CalcPage> createState() => _CalcPageState();
@@ -210,6 +234,28 @@ class _CalcPageState extends State<CalcPage> {
                 ),
               ),
             ),
+          if (rows.isNotEmpty && widget.richtwert)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                kRichtwertHinweis,
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+              ),
+            ),
+          if (rows.isNotEmpty && widget.weiter != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => widget.weiter!.ziel(values)),
+                ),
+                icon: const Icon(Icons.arrow_forward),
+                label: Text(widget.weiter!.label),
+              ),
+            ),
+          if (rows.isNotEmpty && widget.vorschlaege != null)
+            VorschlagKarte(vorschlaege: widget.vorschlaege!(values)),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'calc_page.dart';
 import 'logic.dart';
 import 'materialkosten_page.dart';
+import 'vorschlag.dart';
 
 /// Ein Eintrag in der Startseite. [builder] == null bedeutet "bald verfügbar".
 class CalcDef {
@@ -14,6 +15,109 @@ class CalcDef {
 }
 
 String _mm(double v) => '${fmt(v, digits: v % 1 == 0 ? 0 : 1)} mm';
+
+Widget _pumpePage({
+  String? volumenstrom,
+  String? durchmesser,
+  String? laenge,
+  double? rauheit,
+  String? zeta,
+}) {
+  String rau = '0.0015';
+  for (final o in const ['0.0015', '0.007', '0.045', '0.15']) {
+    if (rauheit != null && (double.parse(o) - rauheit).abs() < 1e-9) rau = o;
+  }
+  return CalcPage(
+    title: 'Pumpe wählen',
+    note: 'Umwälzpumpe Heizung: entweder Volumenstrom eingeben oder Heizleistung '
+        'und Spreizung (ΔT). Rohrlänge = Vor- und Rücklauf zusammen. ζ-Werte '
+        'und Widerstände von Wärmeerzeuger, Ventilen und Mischern laut Herstellerangabe.',
+    requireAll: false,
+    richtwert: true,
+    fields: [
+      CalcField('Volumenstrom (optional)', 'm³/h', initial: volumenstrom),
+      const CalcField('Heizleistung', 'kW'),
+      const CalcField('Spreizung ΔT (Vor-/Rücklauf)', 'K', initial: '20'),
+      CalcField('Rohr-Innendurchmesser', 'mm', initial: durchmesser),
+      CalcField('Rohrlänge (Vor- + Rücklauf)', 'm', initial: laenge),
+      CalcField('Einzelwiderstände (Σζ)', '', initial: zeta ?? '0'),
+      const CalcField('Weitere Widerstände (Kessel, Ventile, Mischer)', 'mbar', initial: '0'),
+      CalcField(
+        'Rohrmaterial',
+        '',
+        options: const [
+          CalcOption('Kupfer, Edelstahl', '0.0015'),
+          CalcOption('Kunststoff, Mehrschicht', '0.007'),
+          CalcOption('Stahl neu', '0.045'),
+          CalcOption('Stahl verzinkt', '0.15'),
+        ],
+        initial: rau,
+      ),
+      const CalcField(
+        'Mittlere Wassertemperatur',
+        '',
+        options: [
+          CalcOption('40 °C (Fußbodenheizung)', '40'),
+          CalcOption('50 °C', '50'),
+          CalcOption('60 °C', '60'),
+          CalcOption('70 °C', '70'),
+        ],
+        initial: '60',
+      ),
+    ],
+    compute: (v) {
+      final a = _pumpeAus(v);
+      if (a == null) return [];
+      final rows = <ResultRow>[
+        ResultRow('Volumenstrom', '${fmt(a.volumenstromM3h, digits: 2)} m³/h',
+            highlight: true),
+        ResultRow('in l/min', fmt(a.volumenstromM3h * 1000 / 60, digits: 1)),
+        ResultRow('Strömungsgeschwindigkeit', '${fmt(a.geschwindigkeit)} m/s'),
+        if (a.geschwindigkeit > 1.0)
+          const ResultRow('Hinweis', 'über 1 m/s: größeres Rohr prüfen'),
+        ResultRow('Druckverlust Rohrnetz', '${fmt(a.dpRohrnetzPa / 100, digits: 0)} mbar'),
+        ResultRow('Erforderliche Förderhöhe', '${fmt(a.foerderhoeheM, digits: 2)} m',
+            highlight: true),
+        ResultRow('Max. Förderhöhe der Pumpe ≥',
+            '${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+        if (a.typ != null)
+          ResultRow('Pumpengröße (Richtwert)', 'Typ ${a.typ}', highlight: true),
+        if (a.dn != null)
+          ResultRow('Anschluss', 'DN ${a.dn} · G ${kPumpenGewinde[a.dn]}'),
+        if (a.hinweis != null) ResultRow(a.hinweis!, ''),
+      ];
+      return rows;
+    },
+    vorschlaege: (v) {
+      final a = _pumpeAus(v);
+      if (a == null || a.typ == null || a.dn == null) return const [];
+      final g = kPumpenGewinde[a.dn]!;
+      return [
+        Vorschlag('Umwälzpumpe Hocheffizienz ${a.typ}', 1,
+            'Richtwert: DN ${a.dn}, Förderhöhe ≥ ${fmt(a.foerderhoeheM * kPumpenReserve, digits: 1)} m'),
+        Vorschlag('Pumpenverschraubung $g', 2, 'Pumpenanschluss G $g'),
+        Vorschlag('Kugelhahn $g IG/IG', 2, 'Absperrung vor und hinter der Pumpe'),
+        Vorschlag('Pumpenisolierschale Heizung', 1, 'Wärmedämmung der Pumpe'),
+        Vorschlag('Flachdichtung Fiber $g', 1, 'Dichtungen (falls nicht in der Verschraubung)'),
+      ];
+    },
+  );
+}
+
+PumpenAuslegung? _pumpeAus(List<double?> v) {
+  if (v[3] == null || v[4] == null) return null;
+  return berechnePumpe(
+    volumenstromM3h: v[0],
+    heizleistungKw: v[1],
+    deltaTK: v[2],
+    durchmesserMm: v[3]!,
+    laengeM: v[4]!,
+    zetaSumme: v[5] ?? 0,
+    zusatzMbar: v[6] ?? 0,
+    rauheitMm: v[7] ?? 0.0015,
+    temperaturC: v[8] ?? 60,
+  );
+}
 
 final List<CalcDef> calculators = [
   CalcDef(
@@ -88,6 +192,14 @@ final List<CalcDef> calculators = [
         CalcField('Dämmstärke', 'mm'),
         CalcField('Rohrlänge', 'm'),
       ],
+      vorschlaege: (v) {
+        final d = v[0];
+        final l = v[2];
+        if (d == null || l == null || d <= 0 || l <= 0) return const [];
+        return [
+          Vorschlag('Isolierung Ø${d.round()}', l, 'Rohr Ø ${fmt(d, digits: 0)} mm, ${fmt(l)} m'),
+        ];
+      },
       compute: (v) {
         if (v[0]! <= 0 || v[1]! < 0 || v[2]! <= 0) return [];
         final i = berechneIsolierung(
@@ -110,7 +222,8 @@ final List<CalcDef> calculators = [
     () => CalcPage(
       title: 'Heizkörper-Leistung',
       note: 'Grober Richtwert. Ersetzt keine Heizlastberechnung '
-          '(DIN EN 12831). Die W/m²-Werte gelten für ca. 2,5 m Raumhöhe.',
+          '(DIN EN 12831). Die W/m²-Werte gelten für ca. 2,5 m Raumhöhe. '
+          'Den Heizkörper selbst nach der Normwärmeleistung des Herstellers wählen.',
       fields: const [
         CalcField('Raumgröße', 'm²'),
         CalcField('Raumhöhe', 'm', initial: '2,5'),
@@ -125,6 +238,13 @@ final List<CalcDef> calculators = [
           ],
           initial: '100',
         ),
+      ],
+      richtwert: true,
+      vorschlaege: (v) => const [
+        Vorschlag('Thermostatkopf', 1, 'je Heizkörper'),
+        Vorschlag('Thermostatventil gerade ½"', 1, 'je Heizkörper'),
+        Vorschlag('Rücklaufverschraubung gerade ½"', 1, 'je Heizkörper'),
+        Vorschlag('Heizkörper-Entlüfter ½"', 1, 'je Heizkörper'),
       ],
       compute: (v) {
         if (v[0]! <= 0 || v[1]! <= 0 || v[2]! <= 0) return [];
@@ -214,6 +334,19 @@ final List<CalcDef> calculators = [
         ),
         CalcField('Einzelwiderstände (Σζ)', '', initial: '0'),
       ],
+      richtwert: true,
+      weiter: CalcWeiter(
+        'Weiter: Pumpe wählen',
+        (v) => _pumpePage(
+          volumenstrom: v[0] == null
+              ? null
+              : fmt(volumenstromZuM3s(v[0]!, (v[1] ?? 1).round()) * 3600, digits: 3),
+          durchmesser: v[2] == null ? null : fmt(v[2]!, digits: 2),
+          laenge: v[3] == null ? null : fmt(v[3]!, digits: 2),
+          rauheit: v[4],
+          zeta: v[6] == null ? null : fmt(v[6]!, digits: 2),
+        ),
+      ),
       compute: (v) {
         final q = v[0];
         final d = v[2];
@@ -243,6 +376,11 @@ final List<CalcDef> calculators = [
         ];
       },
     ),
+  ),
+  CalcDef(
+    'Pumpe wählen',
+    Icons.autorenew,
+    () => _pumpePage(),
   ),
   CalcDef(
     'Liter / m³',
