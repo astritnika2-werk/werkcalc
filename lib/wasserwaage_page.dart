@@ -48,9 +48,10 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   double? _gx, _gy, _gz; // letzte Drehrate (rad/s)
   bool _hatWerte = false;
   String? _fehler;
-  bool _flaeche = true; // true: Fläche (2D), false: Linie (1D)
+  Modus _modus = Modus.flaeche; // vom Nutzer gewählt, wird nicht erraten
+  Modus _linie = Modus.linieDisplay; // zuletzt gewählte Linien-Betriebsart
 
-  final Map<String, Kalibrierung> _kals = {};
+  final Map<Modus, ModusKalibrierung> _kals = {};
   bool _kalLaeuft = false;
   int _kalStart = 0;
   String? _kalMeldung;
@@ -114,14 +115,15 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
 
   void _kalibrierungAbschliessen() {
     _kalLaeuft = false;
-    final k = kalibriere(List.of(_kalProben));
+    final k = kalibriereModus(_modus, List.of(_kalProben));
     if (k == null) {
-      _kalMeldung = 'Kalibrierung nicht möglich: kein Sensorwert. Bitte wiederholen.';
+      _kalMeldung = 'Kalibrierung nicht möglich: Das Handy liegt nicht in der Lage dieser Betriebsart '
+          '(${_modus.name2}) oder es gibt keinen Sensorwert. Bitte wiederholen.';
     } else if (k.streuungGrad > kKalibrierMaxStreuung) {
       _kalMeldung = 'Das Handy wurde während der Kalibrierung bewegt. Bitte ruhig hinlegen und wiederholen.';
     } else {
-      _kals[k.lage.schluessel] = k;
-      _kalOk = k.lage.beschreibung;
+      _kals[_modus] = k;
+      _kalOk = _modus.name2;
       _kalMeldung = null;
     }
   }
@@ -142,14 +144,20 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
         title: const Text('Wasserwaage'),
         content: SingleChildScrollView(
           child: Text(
-            'Legen Sie das Handy ruhig auf das Bauteil – flach, auf die Seite oder aufrecht an eine '
-            'Fläche. Die Anzeige erkennt die Lage selbst und zeigt die aktuelle Neigung.\n\n'
-            'Fläche (2D): Die Blase zeigt die Neigung in zwei Achsen und wandert zur höheren Seite.\n'
-            'Linie (1D): Jede der beiden Achsen hat ein eigenes Libellenrohr mit Winkel, Gefälle in % '
-            'und mm/m.\n\n'
+            'Wählen Sie die Betriebsart, passend zur Lage des Handys. Gemessen wird nur in dieser Lage; '
+            'nichts wird automatisch erraten.\n\n'
+            'Fläche (2D): Handy flach auf die Rückseite (Display oben). Die Blase zeigt die Neigung in '
+            'zwei Achsen und wandert zur höheren Seite.\n'
+            'Linie – Display vorne: Handy aufrecht, Display zum Benutzer. Gemessen wird links/rechts '
+            'über die Breite (X-Achse).\n'
+            'Linie – Linke Seite: Handy steht auf der linken Seitenkante, Display zum Benutzer '
+            '(Oberkante zeigt nach links). Gemessen wird entlang der Längskante (Y-Achse). Die '
+            'Anzeige ist dafür gedreht, damit sie in dieser Lage lesbar ist.\n'
+            'Linie – Rechte Seite: wie links, nur auf der rechten Seitenkante (Oberkante zeigt nach rechts).\n'
+            'Die Blase wandert immer zur höheren Seite.\n\n'
             'Kalibrieren: Handy auf eine Referenzfläche legen und „Kalibrieren“ tippen. Die Lage in '
-            'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die Lage, '
-            'in der sie gemacht wurde (z. B. flach mit Display oben). „Zurücksetzen“ löscht alle.\n\n'
+            'dieser Zeit (ca. 2 Sekunden) gilt danach als 0,00°. Die Kalibrierung gilt für die '
+            'gewählte Betriebsart. „Zurücksetzen“ löscht alle.\n\n'
             'Neigung: Winkel gegen die Senkrechte der Lage. Gefälle %: Höhenunterschied je 100 cm. '
             'Gefälle mm/m: Höhenunterschied je Meter.\n\n'
             'Die Skala der Blase ist vergrößert gezeichnet, damit kleine Neigungen sichtbar sind; die '
@@ -162,94 +170,139 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
     );
   }
 
+  void _modusWaehlen(Modus m) {
+    if (m == _modus) return;
+    setState(() {
+      _modus = m;
+      if (!m.istFlaeche) _linie = m;
+      _kalLaeuft = false;
+      _kalMeldung = null;
+      _kalOk = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    Neigung? n0;
-    Kalibrierung? kal0;
+    final m = _modus;
+    final kal = _kals[m];
+    Neigung? n;
+    Linienmessung? l;
+    var lageOk = false;
     if (_hatWerte) {
-      final lage = bestimmeLage(_filter.x, _filter.y, _filter.z);
-      kal0 = _kals[lage.schluessel];
-      n0 = berechneNeigung(_filter.x, _filter.y, _filter.z, lage: lage, a0: kal0?.a0 ?? 0, b0: kal0?.b0 ?? 0);
+      lageOk = lageStimmt(m, _filter.x, _filter.y, _filter.z);
+      if (m.istFlaeche) {
+        n = berechneNeigung(_filter.x, _filter.y, _filter.z, lage: m.lage, a0: kal?.a0 ?? 0, b0: kal?.b0 ?? 0);
+      } else {
+        l = berechneLinie(m, _filter.x, _filter.y, _filter.z, a0: kal?.a0 ?? 0);
+      }
     }
-    final Neigung? n = n0;
-    final Kalibrierung? kal = kal0;
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        title: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Wasserwaage'),
-            Text('Digitaler Nivellierer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
-          ],
-        ),
-        centerTitle: true,
-        actions: [IconButton(icon: const Icon(Icons.help_outline), tooltip: 'Hilfe', onPressed: _hilfe)],
+    final koerper = <Widget>[
+      _Umschalter(modus: m, linie: _linie, onChanged: _modusWaehlen),
+      const SizedBox(height: 10),
+      Text(m.name2, style: const TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 15)),
+      const SizedBox(height: 2),
+      Text(m.anleitung, style: const TextStyle(color: _kText2, fontSize: 13)),
+      const SizedBox(height: 4),
+      Text(
+        !_hatWerte
+            ? 'Warte auf Sensor …'
+            : (lageOk ? 'Handy liegt in der Lage dieser Betriebsart' : 'Handy liegt nicht in dieser Lage'),
+        style: TextStyle(color: (_hatWerte && !lageOk) ? const Color(0xFFFFD27A) : _kText2, fontSize: 12),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _Umschalter(flaeche: _flaeche, onChanged: (v) => setState(() => _flaeche = v)),
-          const SizedBox(height: 10),
-          const Text('Handy auf das Bauteil legen',
-              style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 15)),
-          const SizedBox(height: 2),
-          const Text('Legen Sie das Handy ruhig auf das Bauteil. Die Anzeige zeigt die aktuelle Neigung.',
-              style: TextStyle(color: _kText2, fontSize: 13)),
-          const SizedBox(height: 4),
-          Text(
-            n == null ? 'Warte auf Sensor …' : 'Lage: ${n.lage.beschreibung}',
-            style: const TextStyle(color: _kText2, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          if (_fehler != null)
-            _Karte(child: Text(_fehler!, style: const TextStyle(color: _kText)))
-          else if (_flaeche)
-            ..._flaecheAnsicht(n)
-          else
-            ..._linieAnsicht(n),
-          const SizedBox(height: 12),
-          _kalibrierung(kal),
-          const SizedBox(height: 12),
-          const _Karte(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.info_outline, color: _kText2, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Hinweis zur Messung', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
-                  SizedBox(height: 4),
-                  Text(_kHinweis, style: TextStyle(color: _kText2)),
-                ]),
-              ),
+      const SizedBox(height: 12),
+      if (_fehler != null)
+        _Karte(child: Text(_fehler!, style: const TextStyle(color: _kText)))
+      else if (m.istFlaeche)
+        ..._flaecheAnsicht(n, lageOk)
+      else
+        ..._linieAnsicht(m, l, lageOk),
+      const SizedBox(height: 12),
+      _kalibrierung(kal),
+      const SizedBox(height: 12),
+      const _Karte(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.info_outline, color: _kText2, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Hinweis zur Messung', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
+              SizedBox(height: 4),
+              Text(_kHinweis, style: TextStyle(color: _kText2)),
             ]),
           ),
-        ],
+        ]),
+      ),
+    ];
+
+    final drehung = m.viertelDrehungen;
+    if (drehung == 0) {
+      return Scaffold(
+        backgroundColor: _kBg,
+        appBar: AppBar(
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Wasserwaage'),
+              Text('Digitaler Nivellierer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
+            ],
+          ),
+          centerTitle: true,
+          actions: [IconButton(icon: const Icon(Icons.help_outline), tooltip: 'Hilfe', onPressed: _hilfe)],
+        ),
+        body: ListView(padding: const EdgeInsets.all(16), children: koerper),
+      );
+    }
+
+    // Seitenlage: Die Oberfläche wird gedreht, damit sie in dieser Lage aufrecht lesbar ist
+    // (linke Seite: Oberkante zeigt nach links → Drehung im Uhrzeigersinn; rechte Seite: umgekehrt).
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: RotatedBox(
+          quarterTurns: drehung,
+          child: Column(
+            children: [
+              Row(children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: _kText),
+                  tooltip: 'Zurück',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+                const Expanded(
+                  child: Text('Wasserwaage – Digitaler Nivellierer',
+                      style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 16)),
+                ),
+                IconButton(
+                    icon: const Icon(Icons.help_outline, color: _kText), tooltip: 'Hilfe', onPressed: _hilfe),
+              ]),
+              Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: koerper)),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   // ───────── Fläche (2D) ─────────
-  List<Widget> _flaecheAnsicht(Neigung? n) {
-    final Neigung? m = (n != null && n.gueltig) ? n : null;
+  List<Widget> _flaecheAnsicht(Neigung? n, bool lageOk) {
+    final Neigung? m = (n != null && n.gueltig && lageOk) ? n : null;
     return [
       LayoutBuilder(builder: (context, c) {
-        final d = c.maxWidth;
-        return SizedBox(
-          height: d,
-          child: CustomPaint(size: Size(d, d), painter: _LibellePainter(neigung: m)),
+        final d = math.min(c.maxWidth, 420.0);
+        return Center(
+          child: SizedBox(
+            width: d,
+            height: d,
+            child: CustomPaint(size: Size(d, d), painter: _LibellePainter(neigung: m)),
+          ),
         );
       }),
       const SizedBox(height: 10),
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(
-            child: _AchsenKachel(
-                titel: n?.lage.titelA ?? 'Achse A', grad: m?.aGrad, steigung: m?.sx)),
+        Expanded(child: _AchsenKachel(titel: 'X (links/rechts)', grad: m?.aGrad, steigung: m?.sx)),
         const SizedBox(width: 10),
-        Expanded(
-            child: _AchsenKachel(
-                titel: n?.lage.titelB ?? 'Achse B', grad: m?.bGrad, steigung: m?.sy)),
+        Expanded(child: _AchsenKachel(titel: 'Y (vorne/hinten)', grad: m?.bGrad, steigung: m?.sy)),
       ]),
       const SizedBox(height: 10),
       _Banner(n: m),
@@ -257,78 +310,36 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   }
 
   // ───────── Linie (1D) ─────────
-  List<Widget> _linieAnsicht(Neigung? n) {
-    final Neigung? m = (n != null && n.gueltig) ? n : null;
-    final a = m?.aGrad ?? 0.0;
-    final b = m?.bGrad ?? 0.0;
+  List<Widget> _linieAnsicht(Modus modus, Linienmessung? l, bool lageOk) {
+    final Linienmessung? m = (l != null && l.gueltig && lageOk) ? l : null;
+    final grad = m?.grad ?? 0.0;
     return [
       SizedBox(
         height: 84,
         child: CustomPaint(
-          painter: _RoehrePainter(waagerecht: true, grad: a, aktiv: m != null),
+          painter: _RoehrePainter(waagerecht: true, grad: grad, aktiv: m != null),
           child: const SizedBox.expand(),
         ),
       ),
       const SizedBox(height: 8),
       Center(
-        child: Text(m == null ? '–' : '${zahl(a)}°',
+        child: Text(m == null ? '–' : '${zahl(grad)}°',
             style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
       ),
       Center(
         child: Text(
-          m == null ? '–' : '${zahl(m.sx * 100)} %   |   ${zahl(m.sx * 1000, 0)} mm/m',
+          m == null ? '–' : '${zahl(m.prozent)} %   |   ${zahl(m.mmProM, 0)} mm/m',
           style: const TextStyle(fontSize: 17, color: _kText, fontFeatures: _ziffern),
         ),
       ),
       const SizedBox(height: 4),
-      Center(child: Text(n?.lage.titelA ?? '', style: const TextStyle(color: _kText2, fontSize: 12))),
+      Center(child: Text(modus.achseText, style: const TextStyle(color: _kText2, fontSize: 12))),
       const SizedBox(height: 8),
-      _Richtung(text: m == null ? '–' : _einzelRichtung(m, true)),
-      const SizedBox(height: 14),
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-          width: 86,
-          height: 230,
-          child: CustomPaint(
-            painter: _RoehrePainter(waagerecht: false, grad: b, aktiv: m != null),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(children: [
-            _Karte(
-              child: SizedBox(
-                width: double.infinity,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(n?.lage.titelB ?? '', style: const TextStyle(color: _kText2, fontSize: 12)),
-                  const SizedBox(height: 2),
-                  Text(m == null ? '–' : '${zahl(b)}°',
-                      style: const TextStyle(
-                          fontSize: 34, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
-                  Text(m == null ? '–' : '${zahl(m.sy * 100)} %',
-                      style: const TextStyle(color: _kText, fontSize: 15, fontFeatures: _ziffern)),
-                  Text(m == null ? '–' : '${zahl(m.sy * 1000, 0)} mm/m',
-                      style: const TextStyle(color: _kText, fontSize: 15, fontFeatures: _ziffern)),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _Richtung(text: m == null ? '–' : _einzelRichtung(m, false)),
-          ]),
-        ),
-      ]),
+      _Richtung(text: m == null ? '–' : linienRichtung(m)),
     ];
   }
 
-  String _einzelRichtung(Neigung n, bool a) {
-    final wert = a ? n.aGrad : n.bGrad;
-    if (zahl(wert) == '0,00') return 'Waagerecht';
-    final achse = a ? n.lage.a : n.lage.b;
-    return '${n.lage.seite(achse, wert > 0)} höher';
-  }
-
-  Widget _kalibrierung(Kalibrierung? kal) {
+  Widget _kalibrierung(ModusKalibrierung? kal) {
     return _Karte(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (_kalLaeuft)
@@ -344,9 +355,9 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
             Expanded(child: Text('Kalibrierung abgeschlossen\n($_kalOk)', style: const TextStyle(color: _kText))),
           ])
         else if (kal != null)
-          const Text('Kalibriert für diese Lage', style: TextStyle(color: _kText))
+          const Text('Kalibriert (diese Betriebsart)', style: TextStyle(color: _kText))
         else
-          const Text('Nicht kalibriert (für diese Lage)', style: TextStyle(color: _kText2)),
+          const Text('Nicht kalibriert (diese Betriebsart)', style: TextStyle(color: _kText2)),
         if (_kalMeldung != null) ...[
           const SizedBox(height: 8),
           Text(_kalMeldung!, style: const TextStyle(color: Color(0xFFFFB4A9))),
@@ -400,36 +411,53 @@ class _Karte extends StatelessWidget {
 }
 
 class _Umschalter extends StatelessWidget {
-  const _Umschalter({required this.flaeche, required this.onChanged});
-  final bool flaeche;
-  final ValueChanged<bool> onChanged;
+  const _Umschalter({required this.modus, required this.linie, required this.onChanged});
+  final Modus modus;
+  final Modus linie;
+  final ValueChanged<Modus> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    Widget tab(String text, bool aktiv, VoidCallback tap) => Expanded(
+    Widget tab(String text, bool aktiv, VoidCallback tap, {double size = 15}) => Expanded(
           child: GestureDetector(
             onTap: tap,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 11),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: aktiv ? Colors.white : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(text,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                      fontWeight: FontWeight.w700, color: aktiv ? const Color(0xFF0B2A5B) : _kText)),
+                      fontSize: size, fontWeight: FontWeight.w700, color: aktiv ? const Color(0xFF0B2A5B) : _kText)),
             ),
           ),
         );
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand)),
-      child: Row(children: [
-        tab('Fläche (2D)', flaeche, () => onChanged(true)),
-        tab('Linie (1D)', !flaeche, () => onChanged(false)),
-      ]),
-    );
+    BoxDecoration rahmen() =>
+        BoxDecoration(color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand));
+    return Column(children: [
+      Container(
+        padding: const EdgeInsets.all(4),
+        decoration: rahmen(),
+        child: Row(children: [
+          tab('Fläche (2D)', modus.istFlaeche, () => onChanged(Modus.flaeche)),
+          tab('Linie (1D)', !modus.istFlaeche, () => onChanged(linie)),
+        ]),
+      ),
+      if (!modus.istFlaeche) ...[
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: rahmen(),
+          child: Row(children: [
+            for (final m in [Modus.linieDisplay, Modus.linieLinks, Modus.linieRechts])
+              tab(m.name2, modus == m, () => onChanged(m), size: 13),
+          ]),
+        ),
+      ],
+    ]);
   }
 }
 

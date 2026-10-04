@@ -170,16 +170,16 @@ typedef Vek = ({double x, double y, double z});
 
 /// Kalibrierung für die Lage, in der das Handy beim Kalibrieren liegt.
 /// Mindestens 10 Proben mit Schwerkraftvektor.
-Kalibrierung? kalibriere(List<Vek> proben) {
+Kalibrierung? kalibriere(List<Vek> proben, {Lage? lage}) {
   final gut = proben.where((p) => p.x * p.x + p.y * p.y + p.z * p.z > 1e-12).toList();
   if (gut.length < 10) return null;
   final mx = gut.map((p) => p.x).reduce((a, b) => a + b) / gut.length;
   final my = gut.map((p) => p.y).reduce((a, b) => a + b) / gut.length;
   final mz = gut.map((p) => p.z).reduce((a, b) => a + b) / gut.length;
-  final lage = bestimmeLage(mx, my, mz);
+  final l = lage ?? bestimmeLage(mx, my, mz);
   final aw = <double>[], bw = <double>[];
   for (final p in gut) {
-    final n = berechneNeigung(p.x, p.y, p.z, lage: lage);
+    final n = berechneNeigung(p.x, p.y, p.z, lage: l);
     aw.add(n.aGrad);
     bw.add(n.bGrad);
   }
@@ -189,7 +189,7 @@ Kalibrierung? kalibriere(List<Vek> proben) {
     return math.sqrt(l.map((v) => (v - m) * (v - m)).reduce((a, b) => a + b) / l.length);
   }
 
-  return Kalibrierung(lage, mw(aw), mw(bw), math.max(sd(aw), sd(bw)));
+  return Kalibrierung(l, mw(aw), mw(bw), math.max(sd(aw), sd(bw)));
 }
 
 /// Größte Neigung einer Achse innerhalb einer Lage: atan(√2) ≈ 54,7°
@@ -287,4 +287,178 @@ String richtungsText(Neigung n) {
   if (teile.isEmpty) return 'Waagerecht';
   if (teile.length == 2) teile[1] = teile[1][0].toLowerCase() + teile[1].substring(1);
   return teile.join(', ');
+}
+
+
+// ───────────────────────── Betriebsarten ─────────────────────────
+//
+// Jede Betriebsart hat eine fest definierte Lage des Handys, eine fest
+// definierte Sensorachse und eine fest definierte Blasenbewegung. Es wird
+// nichts erraten: Der Nutzer wählt die Betriebsart, die App misst nur dort.
+
+enum Modus {
+  /// Handy flach auf der Rückseite (Display oben): Kreislibelle, zwei Achsen.
+  flaeche,
+
+  /// Handy aufrecht, Display zum Benutzer: Libelle links/rechts über die X-Achse (Breite).
+  linieDisplay,
+
+  /// Handy auf der linken Seitenkante (Display zum Benutzer, Oberkante zeigt nach links):
+  /// Libelle links/rechts über die Y-Achse (Längskante).
+  linieLinks,
+
+  /// Handy auf der rechten Seitenkante (Display zum Benutzer, Oberkante zeigt nach rechts):
+  /// Libelle links/rechts über die Y-Achse (Längskante).
+  linieRechts,
+}
+
+extension ModusInfo on Modus {
+  bool get istFlaeche => this == Modus.flaeche;
+
+  /// Sensorachse, die senkrecht stehen muss, und ihre Richtung (true: + zeigt nach oben).
+  Lage get lage => switch (this) {
+        Modus.flaeche => const Lage(Achse.z, true),
+        Modus.linieDisplay => const Lage(Achse.y, true),
+        Modus.linieLinks => const Lage(Achse.x, true),
+        Modus.linieRechts => const Lage(Achse.x, false),
+      };
+
+  /// Gemessene Achse der Linien-Betriebsarten.
+  Achse get messAchse => switch (this) {
+        Modus.linieDisplay => Achse.x,
+        _ => Achse.y,
+      };
+
+  /// Vorzeichen: +1, wenn das positive Achsenende vom Benutzer aus rechts liegt, sonst −1.
+  /// Display vorne: +X ist rechts. Linke Seite: Oberkante (+Y) zeigt nach links → −1.
+  /// Rechte Seite: Oberkante (+Y) zeigt nach rechts → +1.
+  int get rechtsVorzeichen => switch (this) {
+        Modus.linieLinks => -1,
+        _ => 1,
+      };
+
+  /// Anzahl Vierteldrehungen (im Uhrzeigersinn), mit der die Oberfläche gedreht wird,
+  /// damit sie in der Lage des Handys aufrecht lesbar ist.
+  int get viertelDrehungen => switch (this) {
+        Modus.linieLinks => 1,
+        Modus.linieRechts => 3,
+        _ => 0,
+      };
+
+  String get name2 => switch (this) {
+        Modus.flaeche => 'Fläche (2D)',
+        Modus.linieDisplay => 'Display vorne',
+        Modus.linieLinks => 'Linke Seite',
+        Modus.linieRechts => 'Rechte Seite',
+      };
+
+  String get anleitung => switch (this) {
+        Modus.flaeche => 'Handy flach auf die Rückseite legen (Display oben). Die Blase zeigt die Neigung in alle Richtungen.',
+        Modus.linieDisplay =>
+          'Handy aufrecht halten, Display zum Benutzer. Gemessen wird links/rechts über die Breite des Handys (X-Achse).',
+        Modus.linieLinks =>
+          'Handy auf die linke Seitenkante stellen, Display zum Benutzer (Oberkante zeigt nach links). Gemessen wird entlang der Längskante (Y-Achse).',
+        Modus.linieRechts =>
+          'Handy auf die rechte Seitenkante stellen, Display zum Benutzer (Oberkante zeigt nach rechts). Gemessen wird entlang der Längskante (Y-Achse).',
+      };
+
+  String get achseText => switch (this) {
+        Modus.flaeche => 'X und Y',
+        Modus.linieDisplay => 'X-Achse (Breite)',
+        _ => 'Y-Achse (Längskante)',
+      };
+}
+
+/// Ist das Handy in der Lage der Betriebsart? Die Referenzachse muss die größte
+/// Komponente haben und in die richtige Richtung zeigen (rein geometrisch,
+/// kein eigener Schwellenwert).
+bool lageStimmt(Modus m, double x, double y, double z) {
+  final l = m.lage;
+  final c = komponente(l.ref, x, y, z);
+  if (l.plus ? c <= 0 : c >= 0) return false;
+  final ax = x.abs(), ay = y.abs(), az = z.abs();
+  return c.abs() >= math.max(ax, math.max(ay, az)) - 1e-12;
+}
+
+/// Messung einer Linien-Betriebsart (1D).
+class Linienmessung {
+  const Linienmessung({
+    required this.grad,
+    required this.prozent,
+    required this.mmProM,
+    required this.steigung,
+    required this.lageOk,
+    required this.gueltig,
+    required this.rohGrad,
+  });
+
+  /// Neigung der Messachse in Grad aus Sicht des Benutzers, nach Abzug der
+  /// Kalibrierung. Positiv: rechts höher, negativ: links höher.
+  final double grad;
+  final double steigung; // tan(grad), mit Vorzeichen
+  final double prozent; // Gefälle in % (Betrag, ohne Vorzeichen)
+  final double mmProM; // Gefälle in mm/m (Betrag)
+  final bool lageOk;
+  final bool gueltig;
+
+  /// Winkel ohne Kalibrierung (für die Kalibrierung selbst).
+  final double rohGrad;
+}
+
+/// Neigung der Messachse = Höhenwinkel der Achse über der Waagerechten:
+/// asin(Komponente / |g|). Unabhängig von einer Neigung quer dazu.
+Linienmessung berechneLinie(Modus m, double x, double y, double z, {double a0 = 0}) {
+  final betrag = math.sqrt(x * x + y * y + z * z);
+  if (betrag < 1e-9) {
+    return const Linienmessung(
+        grad: 0, prozent: 0, mmProM: 0, steigung: 0, lageOk: false, gueltig: false, rohGrad: 0);
+  }
+  final c = komponente(m.messAchse, x, y, z);
+  final roh = m.rechtsVorzeichen * _grad(math.asin((c / betrag).clamp(-1.0, 1.0)));
+  final w = roh - a0;
+  final st = math.tan(_rad(w));
+  return Linienmessung(
+    grad: w,
+    steigung: st,
+    prozent: st.abs() * 100,
+    mmProM: st.abs() * 1000,
+    lageOk: lageStimmt(m, x, y, z),
+    gueltig: true,
+    rohGrad: roh,
+  );
+}
+
+/// Beschriftung einer Linien-Messung, aus denselben Werten wie die Anzeige.
+String linienRichtung(Linienmessung l) {
+  if (!l.gueltig) return '–';
+  if (zahl(l.grad) == '0,00') return 'Waagerecht';
+  return l.grad > 0 ? 'Rechts höher' : 'Links höher';
+}
+
+/// Kalibrierung einer Betriebsart (Nullpunkt-Versatz).
+class ModusKalibrierung {
+  const ModusKalibrierung(this.a0, this.b0, this.streuungGrad);
+  final double a0;
+  final double b0;
+  final double streuungGrad;
+}
+
+/// Kalibriert eine Betriebsart aus den Schwerkraftvektoren der Ruhe-Messung.
+/// null, wenn zu wenige Proben vorliegen oder das Handy nicht in der Lage der Betriebsart liegt.
+ModusKalibrierung? kalibriereModus(Modus m, List<Vek> proben) {
+  final gut = proben.where((p) => p.x * p.x + p.y * p.y + p.z * p.z > 1e-12).toList();
+  if (gut.length < 10) return null;
+  final mx = gut.map((p) => p.x).reduce((a, b) => a + b) / gut.length;
+  final my = gut.map((p) => p.y).reduce((a, b) => a + b) / gut.length;
+  final mz = gut.map((p) => p.z).reduce((a, b) => a + b) / gut.length;
+  if (!lageStimmt(m, mx, my, mz)) return null;
+  if (m.istFlaeche) {
+    final k = kalibriere(gut, lage: m.lage);
+    if (k == null) return null;
+    return ModusKalibrierung(k.a0, k.b0, k.streuungGrad);
+  }
+  final w = [for (final p in gut) berechneLinie(m, p.x, p.y, p.z).rohGrad];
+  final mw = w.reduce((a, b) => a + b) / w.length;
+  final sd = math.sqrt(w.map((v) => (v - mw) * (v - mw)).reduce((a, b) => a + b) / w.length);
+  return ModusKalibrierung(mw, 0, sd);
 }
