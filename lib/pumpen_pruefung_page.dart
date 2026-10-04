@@ -267,11 +267,13 @@ class _PumpenPruefungPageState extends State<PumpenPruefungPage> {
           ],
           const SizedBox(height: 12),
           Text(
-            'Bewertungsregel (Richtwert): geeignet, wenn die Kennlinie beim geforderten Q '
-            'mindestens das ${_zahl(kPumpeReserveGeeignet, 1)}-fache der benötigten '
-            'Förderhöhe liefert und Q nicht im letzten ${_zahl((1 - kPumpeQNahEnde) * 100, 0)} % '
-            'der Kennlinie liegt. Maßgeblich bleiben Herstellerangaben und geltende '
-            'technische Regeln. Die Richtigkeit eigener Eingaben liegt beim Nutzer.',
+            'Interne Richtwerte – keine Herstellervorgabe und keine Norm.\n'
+            'Verwendet werden: Kennlinie beim geforderten Q mindestens das '
+            '${_zahl(kPumpeReserveGeeignet, 1)}-fache der benötigten Förderhöhe; '
+            'Q nicht im letzten ${_zahl((1 - kPumpeQNahEnde) * 100, 0)} % der Kennlinie; '
+            'ab dem ${_zahl(kPumpeUeberdimensioniert, 0)}-fachen Hinweis auf Überdimensionierung. '
+            'Maßgeblich bleiben Herstellerangaben und geltende technische Regeln. '
+            'Die Richtigkeit eigener Eingaben liegt beim Nutzer.',
             style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
           ),
         ],

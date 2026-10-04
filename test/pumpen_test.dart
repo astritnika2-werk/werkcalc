@@ -99,6 +99,8 @@ void main() {
     test('ohne Kennlinie keine Prüfung', () {
       final r = pruefePumpe(q: 1, h: 1);
       expect(r.eignung, Eignung.nichtPruefbar);
+      expect(r.gruende.first,
+          'Prüfung nicht möglich – keine verifizierte Pumpenkennlinie vorhanden.');
     });
 
     test('kaputte Kennlinie keine Prüfung', () {

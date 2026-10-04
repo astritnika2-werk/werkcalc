@@ -14,7 +14,8 @@ class QH {
   final double h;
 }
 
-/// Bewertungsregeln (Richtwerte, in der App sichtbar erklärt):
+/// Interne Richtwerte – keine Herstellervorgabe und keine Norm
+/// (in der App so gekennzeichnet). Bewertungsregeln:
 /// - Reserve Förderhöhe: Die Kennlinie soll beim geforderten Q mindestens das
 ///   1,2-fache der benötigten Förderhöhe liefern.
 /// - Q-Reserve: Der Betriebspunkt soll nicht im letzten Teil der Kennlinie liegen.
@@ -262,8 +263,8 @@ PumpenPruefung pruefePumpe({
     return const PumpenPruefung(
       eignung: Eignung.nichtPruefbar,
       gruende: [
-        'Keine Kennlinie hinterlegt: Der echte Vergleich ist nicht möglich. '
-            'Kennlinie aus dem Datenblatt des Herstellers eingeben.',
+        'Prüfung nicht möglich – keine verifizierte Pumpenkennlinie vorhanden.',
+        'Kennlinie aus dem Datenblatt des Herstellers eingeben (Pumpe eingeben).',
       ],
     );
   }
@@ -278,7 +279,7 @@ PumpenPruefung pruefePumpe({
   if (fehler != null) {
     return PumpenPruefung(
       eignung: Eignung.nichtPruefbar,
-      gruende: ['Kennlinie nicht brauchbar: $fehler'],
+      gruende: ['Prüfung nicht möglich – Kennlinie nicht brauchbar: $fehler'],
     );
   }
   final qMax = k.last.q;
@@ -333,7 +334,7 @@ PumpenPruefung pruefePumpe({
     weich = true;
     gruende.add('Bei Q = ${_z(q)} m³/h liefert die Kennlinie ${_z(hP)} m, benötigt '
         'werden ${_z(h)} m: Reserve nur ${_z(reserveH * 100, 0)} % '
-        '(empfohlen ≥ ${_z((kPumpeReserveGeeignet - 1) * 100, 0)} %).');
+        '(interner Richtwert ≥ ${_z((kPumpeReserveGeeignet - 1) * 100, 0)} %).');
   } else {
     gruende.add('Bei Q = ${_z(q)} m³/h liefert die Kennlinie ${_z(hP)} m, benötigt '
         'werden ${_z(h)} m: Reserve ${_z(reserveH * 100, 0)} %.');
