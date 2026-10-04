@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import 'wasserwaage_auto.dart';
 import 'wasserwaage_logik.dart';
 
 const _kHinweis =
@@ -75,6 +76,9 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
   final GravityFilter _filter = GravityFilter();
   final AnzeigeFilter _anzeige = AnzeigeFilter(); // nur Darstellung, nicht Messung
   int _anzeigeUs = 0;
+  final ModusUmschalter _umschalter = ModusUmschalter(Modus.flaeche);
+  bool _auto = true; // automatische Umschaltung (manuelle Wahl schaltet sie aus)
+  int _autoUs = 0;
   int _letzteUs = 0;
   double? _gx, _gy, _gz; // letzte Drehrate (rad/s)
   bool _hatWerte = false;
@@ -115,6 +119,15 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
         if (_uhr.elapsedMilliseconds - _kalStart >= _kalibrierMs) _kalibrierungAbschliessen();
       }
       if (_hatWerte) {
+        final jetzt0 = _uhr.elapsedMicroseconds;
+        final dtAuto = math.min((jetzt0 - _autoUs) / 1e6, 0.1);
+        _autoUs = jetzt0;
+        if (_auto && !_kalLaeuft) {
+          final neu = _umschalter.update(_filter.x, _filter.y, _filter.z, dtAuto);
+          if (neu != null) _modusWaehlen(neu, manuell: false);
+        } else {
+          _umschalter.zuruecksetzen();
+        }
         final jetzt = _uhr.elapsedMicroseconds;
         _anzeige.update(_filter.x, _filter.y, _filter.z, (jetzt - _anzeigeUs) / 1e6);
         _anzeigeUs = jetzt;
@@ -180,8 +193,10 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
         title: const Text('Wasserwaage'),
         content: SingleChildScrollView(
           child: Text(
-            'Wählen Sie die Betriebsart, passend zur Lage des Handys. Gemessen wird nur in dieser Lage; '
-            'nichts wird automatisch erraten.\n\n'
+            'Die Betriebsart wechselt automatisch, sobald das Handy kurz (ca. 1 Sekunde) ruhig in einer der '
+            'vier Lagen liegt. Kleine Bewegungen lösen keinen Wechsel aus. Mit dem Schalter „Automatisch '
+            'umschalten“ oder durch eigene Wahl einer Betriebsart können Sie die Automatik ausschalten. '
+            'Gemessen wird immer nur in der gewählten Betriebsart.\n\n'
             'Fläche (2D): Handy flach auf die Rückseite (Display oben). Der Marker zeigt die Neigung in '
             'zwei Achsen (X nach rechts, Y nach vorne) und steht bei X 0,00° / Y 0,00° genau in der Mitte.\n'
             'Linie – Display vorne: Handy aufrecht, Display zum Benutzer. Gemessen wird links/rechts '
@@ -205,7 +220,12 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
     );
   }
 
-  void _modusWaehlen(Modus m) {
+  void _modusWaehlen(Modus m, {bool manuell = true}) {
+    if (manuell && _auto) {
+      // Wer selbst wählt, behält diese Wahl: die Automatik schaltet sich aus.
+      setState(() => _auto = false);
+    }
+    _umschalter.setze(m);
     if (m == _modus) return;
     setState(() {
       _modus = m;
@@ -234,6 +254,14 @@ class _WasserwaagePageState extends State<WasserwaagePage> {
 
     final koerper = <Widget>[
       _Umschalter(modus: m, linie: _linie, onChanged: _modusWaehlen),
+      const SizedBox(height: 8),
+      _AutoSchalter(
+        an: _auto,
+        onChanged: (v) => setState(() {
+          _auto = v;
+          _umschalter.setze(_modus);
+        }),
+      ),
       const SizedBox(height: 10),
       Text(m.name2, style: const TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 15)),
       const SizedBox(height: 2),
@@ -518,6 +546,36 @@ class _Umschalter extends StatelessWidget {
       ],
     ]);
   }
+}
+
+class _AutoSchalter extends StatelessWidget {
+  const _AutoSchalter({required this.an, required this.onChanged});
+  final bool an;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+        decoration: BoxDecoration(
+            color: _kKarte, borderRadius: BorderRadius.circular(12), border: Border.all(color: _kRand)),
+        child: Row(children: [
+          const Icon(Icons.screen_rotation_alt_outlined, color: _kText2, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Automatisch umschalten',
+                  style: TextStyle(color: _kText, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text(
+                an
+                    ? 'Die Ansicht wechselt, sobald das Handy kurz ruhig in einer der vier Lagen liegt.'
+                    : 'Aus: Die Betriebsart bleibt, wie Sie sie gewählt haben.',
+                style: const TextStyle(color: _kText2, fontSize: 12),
+              ),
+            ]),
+          ),
+          Switch(value: an, onChanged: onChanged),
+        ]),
+      );
 }
 
 class _AchsenKachel extends StatelessWidget {
