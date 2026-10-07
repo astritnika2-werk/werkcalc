@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'messdaten_page.dart';
 import 'pumpe_lauf_page.dart';
 import 'vibration_page.dart';
 import 'wasserwaage_page.dart';
@@ -17,6 +18,7 @@ class MessenPruefenPage extends StatelessWidget {
         [
           _Eintrag('Pumpe läuft prüfen', Icons.vibration, () => const PumpeLaufPage()),
           _Eintrag('Vibration prüfen', Icons.stacked_line_chart, () => const VibrationPage()),
+          _Eintrag('Messdaten aufzeichnen (Test)', Icons.fiber_manual_record, () => const MessdatenPage()),
           _Eintrag('Akustik prüfen', Icons.mic_none, null),
         ]
       ),

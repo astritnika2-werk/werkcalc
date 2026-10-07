@@ -17,6 +17,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.1
   speech_to_text: ^7.0.0
   sensors_plus: ^6.0.1
+  record: ^5.1.2
 
 dev_dependencies:
   flutter_test:
