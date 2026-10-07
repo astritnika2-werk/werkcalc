@@ -100,7 +100,7 @@ void main() {
         t += 0.033;
       }
       expect(f.x, inInclusiveRange(0.55, 0.75));
-      for (var i = 0; i < 100; i++) {
+      for (var i = 0; i < 300; i++) {
         f.update(1.0, 0, 9.81, 0.033);
       }
       expect(f.x, closeTo(1.0, 1e-6));
@@ -128,7 +128,7 @@ void main() {
         t += 0.033;
       }
       expect(f.x, greaterThan(0.93));
-      expect(t, lessThan(0.6));
+      expect(t, lessThan(0.9)); // ≈ 3 × 0,279 s: Anzeige absichtlich um 30 % langsamer
     });
     test('Zahlen und Marker kommen aus demselben geglätteten Vektor', () {
       final f = AnzeigeFilter();
