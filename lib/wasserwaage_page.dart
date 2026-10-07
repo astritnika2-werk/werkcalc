@@ -367,14 +367,17 @@ class WasserwaageAnsicht extends StatelessWidget {
     });
   }
 
-  // Status/Richtungsfeld: (Text, Zusatz, waagerecht, Warnung)
-  ({String text, String? unter, bool waagerecht, bool warn}) _status(String? richtung, String? unterOk) {
+  // Status/Richtungsfeld: (Text, Zusatz, waagerecht, Warnung, nicht waagerecht)
+  ({String text, String? unter, bool waagerecht, bool warn, bool nicht}) _status(String? richtung, String? unterOk) {
     if (richtung != null) {
-      return (text: richtung, unter: unterOk, waagerecht: richtung.toUpperCase() == 'WAAGERECHT', warn: false);
+      if (richtung.toUpperCase() == 'WAAGERECHT') {
+        return (text: 'WAAGERECHT', unter: unterOk, waagerecht: true, warn: false, nicht: false);
+      }
+      return (text: 'NICHT WAAGERECHT', unter: richtung, waagerecht: false, warn: false, nicht: true);
     }
-    if (!hatWerte) return (text: 'WARTE AUF SENSOR', unter: null, waagerecht: false, warn: false);
-    if (!lageOk) return (text: 'NICHT IN LAGE', unter: _lageHinweis(modus), waagerecht: false, warn: true);
-    return (text: '–', unter: null, waagerecht: false, warn: false);
+    if (!hatWerte) return (text: 'WARTE AUF SENSOR', unter: null, waagerecht: false, warn: false, nicht: false);
+    if (!lageOk) return (text: 'NICHT IN LAGE', unter: _lageHinweis(modus), waagerecht: false, warn: true, nicht: false);
+    return (text: '–', unter: null, waagerecht: false, warn: false, nicht: false);
   }
 
   Linienmessung? get _gueltigeLinie {
@@ -401,7 +404,7 @@ class WasserwaageAnsicht extends StatelessWidget {
         const SizedBox(width: 14),
         _XY(label: 'Y', grad: m?.bGrad, steigung: m?.sy),
         const SizedBox(width: 14),
-        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn),
+        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn, nicht: st.nicht),
       ]);
       haupt = LayoutBuilder(builder: (context, k) {
         final d = math.min(k.maxWidth, k.maxHeight);
@@ -417,7 +420,7 @@ class WasserwaageAnsicht extends StatelessWidget {
             key: const Key('winkel'),
             style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: _kText, fontFeatures: _ziffern)),
         const SizedBox(width: 14),
-        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn),
+        _Chip(st.warn ? (st.unter ?? st.text) : st.text, waagerecht: st.waagerecht, warn: st.warn, nicht: st.nicht),
         const SizedBox(width: 14),
         _Mini(wert: m == null ? '–' : '${zahl(m.prozent)} %', label: 'Gefälle'),
         const SizedBox(width: 10),
@@ -598,7 +601,7 @@ class WasserwaageAnsicht extends StatelessWidget {
       const SizedBox(width: 8),
       Expanded(child: _Wert(label: 'Gefälle', wert: m == null ? '–' : '${zahl(m.mmProM, 0)} mm/m')),
     ]);
-    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
+    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn, nicht: st.nicht);
     return Column(children: [
       Expanded(flex: 14, child: skala),
       Expanded(flex: 4, child: winkel),
@@ -623,7 +626,7 @@ class WasserwaageAnsicht extends StatelessWidget {
       const SizedBox(width: 8),
       Expanded(child: _AchsenKachel(titel: 'Y (vorne/hinten)', grad: m?.bGrad, steigung: m?.sy)),
     ]);
-    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn);
+    final banner = _Status(text: st.text, unter: st.unter, waagerecht: st.waagerecht, warn: st.warn, nicht: st.nicht);
     return LayoutBuilder(builder: (context, c) {
       final d = math.min(c.maxWidth, math.max(100.0, c.maxHeight - 130));
       return Column(children: [
@@ -674,16 +677,17 @@ class _IconKlein extends StatelessWidget {
 
 /// Kleines Richtungsfeld für die Kopfleiste der breiten Ansicht.
 class _Chip extends StatelessWidget {
-  const _Chip(this.text, {required this.waagerecht, required this.warn});
+  const _Chip(this.text, {required this.waagerecht, required this.warn, this.nicht = false});
   final String text;
   final bool waagerecht;
   final bool warn;
+  final bool nicht;
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = waagerecht ? const Color(0xFF123F27) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
-    final Color rand = waagerecht ? _kGruen : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
-    final Color tx = (waagerecht || warn) ? _kText : const Color(0xFF0B2A5B);
+    final Color bg = waagerecht ? const Color(0xFF123F27) : nicht ? const Color(0xFF4A2A10) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
+    final Color rand = waagerecht ? _kGruen : nicht ? _kOrange : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
+    final Color tx = (waagerecht || warn || nicht) ? _kText : const Color(0xFF0B2A5B);
     return Container(
       key: const Key('status'),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -952,6 +956,10 @@ class EinstellungenInhalt extends StatelessWidget {
                 Text('Hinweis zur Messung', style: TextStyle(fontWeight: FontWeight.bold, color: _kText)),
                 SizedBox(height: 4),
                 Text(_kHinweis, style: TextStyle(color: _kText2)),
+                SizedBox(height: 8),
+                Text('„Waagerecht“ gilt bis ±0,2° je Achse (rund 3,5 mm/m) – interner Richtwert, '
+                    'keine Herstellervorgabe, keine Norm.',
+                    style: TextStyle(color: _kText2)),
               ]),
             ),
           ]),
@@ -1041,18 +1049,19 @@ class _AchsenKachel extends StatelessWidget {
 
 /// Richtungsfeld (WAAGERECHT / LINKS HÖHER / …); füllt den gegebenen Platz.
 class _Status extends StatelessWidget {
-  const _Status({required this.text, required this.unter, required this.waagerecht, required this.warn});
+  const _Status({required this.text, required this.unter, required this.waagerecht, required this.warn, this.nicht = false});
   final String text;
   final String? unter;
   final bool waagerecht;
   final bool warn;
+  final bool nicht;
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = waagerecht ? const Color(0xFF123F27) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
-    final Color rand = waagerecht ? _kGruen : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
-    final Color tx = (waagerecht || warn) ? _kText : const Color(0xFF0B2A5B);
-    final Color tx2 = (waagerecht || warn) ? _kText2 : const Color(0xFF28446F);
+    final Color bg = waagerecht ? const Color(0xFF123F27) : nicht ? const Color(0xFF4A2A10) : (warn ? const Color(0xFF4A3A12) : const Color(0xFFDCE8FB));
+    final Color rand = waagerecht ? _kGruen : nicht ? _kOrange : (warn ? const Color(0xFFFFD27A) : const Color(0xFF9DB9E6));
+    final Color tx = (waagerecht || warn || nicht) ? _kText : const Color(0xFF0B2A5B);
+    final Color tx2 = (waagerecht || warn || nicht) ? _kText2 : const Color(0xFF28446F);
     return Container(
       key: const Key('status'),
       width: double.infinity,
@@ -1170,7 +1179,7 @@ class SkalaPainter extends CustomPainter {
     final mx = cx + (aktiv ? skalaAnteil(grad) : 0) * (x1 - x0) / 2;
     final farbe = !aktiv
         ? const Color(0xFF8E99AB)
-        : (ausserhalb ? _kOrange : (zahl(grad) == '0,00' ? _kGruen : Colors.white));
+        : (ausserhalb ? _kOrange : (imToleranzbereich(grad) ? _kGruen : _kOrange));
     final triTop = achseY - u * 0.30;
     final triH = u * 0.10, triB = u * 0.045;
     canvas.drawLine(
@@ -1290,7 +1299,7 @@ class FlaechePainter extends CustomPainter {
     final nn = n;
     final farbe = nn == null
         ? const Color(0xFF8E99AB)
-        : (ausserhalb ? _kOrange : (zahl(nn.aGrad) == '0,00' && zahl(nn.bGrad) == '0,00' ? _kGruen : _kLimeMitte));
+        : (ausserhalb ? _kOrange : (imToleranzbereich(nn.aGrad) && imToleranzbereich(nn.bGrad) ? _kGruen : _kOrange));
     final r = (w * 0.03).clamp(7.0, 17.0).toDouble();
     canvas.drawCircle(pos, r * 1.65, Paint()..color = farbe.withValues(alpha: 0.28));
     canvas.drawCircle(pos, r, Paint()..color = farbe);

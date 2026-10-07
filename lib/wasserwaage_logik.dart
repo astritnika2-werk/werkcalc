@@ -277,13 +277,21 @@ String zahl(double v, [int stellen = 2]) {
   return s.replaceFirst('-', '−');
 }
 
+/// Toleranz für „waagerecht“ in Grad (je Achse). Interner Richtwert, keine Herstellervorgabe,
+/// keine Norm: Die Beschleunigungssensoren üblicher Smartphones liegen nach der Kalibrierung
+/// in der Größenordnung von ±0,1° bis ±0,2°; 0,2° entsprechen rund 3,5 mm/m.
+const double kWaagerechtToleranzGrad = 0.2;
+
+/// Liegt der (auf 2 Stellen gerundete) Winkel innerhalb der Waagerecht-Toleranz?
+bool imToleranzbereich(double grad) => grad.abs() <= kWaagerechtToleranzGrad + 1e-9 || zahl(grad) == '0,00';
+
 /// Welche Seite höher liegt, aus denselben Werten wie die Anzeige
 /// (Rundung auf 2 Stellen wie in der Zahlenanzeige). Beispiel: „Rechts höher, vorne höher“.
 String richtungsText(Neigung n) {
   if (!n.gueltig) return '–';
   final teile = <String>[];
-  if (zahl(n.aGrad) != '0,00') teile.add('${n.lage.seite(n.lage.a, n.aGrad > 0)} höher');
-  if (zahl(n.bGrad) != '0,00') teile.add('${n.lage.seite(n.lage.b, n.bGrad > 0)} höher');
+  if (!imToleranzbereich(n.aGrad)) teile.add('${n.lage.seite(n.lage.a, n.aGrad > 0)} höher');
+  if (!imToleranzbereich(n.bGrad)) teile.add('${n.lage.seite(n.lage.b, n.bGrad > 0)} höher');
   if (teile.isEmpty) return 'Waagerecht';
   if (teile.length == 2) teile[1] = teile[1][0].toLowerCase() + teile[1].substring(1);
   return teile.join(', ');
@@ -431,7 +439,7 @@ Linienmessung berechneLinie(Modus m, double x, double y, double z, {double a0 = 
 /// Beschriftung einer Linien-Messung, aus denselben Werten wie die Anzeige.
 String linienRichtung(Linienmessung l) {
   if (!l.gueltig) return '–';
-  if (zahl(l.grad) == '0,00') return 'Waagerecht';
+  if (imToleranzbereich(l.grad)) return 'Waagerecht';
   return l.grad > 0 ? 'Rechts höher' : 'Links höher';
 }
 
