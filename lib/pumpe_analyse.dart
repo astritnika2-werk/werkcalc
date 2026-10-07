@@ -438,3 +438,75 @@ PumpeBefund bewertePumpe(Spektrum ref, Spektrum probe) {
   }
   return unklar(PumpeGrund.schwach, kTextSchwach, sp: besteSpitze, breit: breit);
 }
+
+// ───────────────────── Direkte Erkennung (ohne Referenzmessung) ─────────────────────
+
+const double kTonSteht = 4.0; // Direktmodus: alle Spitzen < 4 × Rauschboden → keine Pumpenvibration
+const String kTextDirektLaeuft = 'Zirkulation erkannt';
+const String kTextDirektSteht = 'Keine typische Pumpenvibration erkannt';
+const String kTextDirektNaeher = 'Bitte Smartphone näher an die Pumpe halten';
+const String kTextDirektRuhig = 'Bitte Smartphone ruhig und fest an die Pumpe halten';
+
+/// Bewertung eines einzelnen Messfensters ohne Referenz. Statt einer Referenz dient der eigene
+/// Rauschboden (Median des Spektrums) als Maßstab. Gleichbleibende Fremdvibration (andere Maschine,
+/// Untergrund) lässt sich so nicht von der Pumpe trennen – das ist eine Grenze des Verfahrens.
+PumpeBefund bewertePumpeDirekt(Spektrum probe) {
+  PumpeBefund unklar(PumpeGrund g, String text, {Spitze? sp}) => PumpeBefund(
+        status: LaufStatus.unklar,
+        grund: g,
+        text: text,
+        spitzeHz: sp?.hz,
+        spitzeRms: sp?.rms,
+        tonalitaet: sp?.tonalitaet,
+        ueberhoehung: sp?.ueberhoehung,
+        nachweisGrenze: probe.gueltig ? probe.nachweisGrenze : null,
+      );
+  if (!probe.gueltig) return unklar(PumpeGrund.zuWenigDaten, kTextZuWenig);
+  if (probe.fs < kFsMinLaeuft) return unklar(PumpeGrund.abtastrate, kTextRate);
+  if (probe.lfRms > kProbeLfMax) return unklar(PumpeGrund.bewegt, kTextDirektRuhig);
+
+  final med = math.max(probe.median, 1e-18);
+  final b = probe.p;
+  final spitzen = <Spitze>[];
+  for (var k = 1; k < b.length - 1; k++) {
+    if (!(b[k] >= b[k - 1] && b[k] >= b[k + 1])) continue;
+    final ton = b[k] / med;
+    if (ton < 3.0) continue;
+    spitzen.add(Spitze(k, probe.f[k], ton, ton, math.sqrt(b[k])));
+  }
+  spitzen.sort((a, c) => c.tonalitaet.compareTo(a.tonalitaet));
+
+  for (final c in spitzen) {
+    if (c.tonalitaet >= kTonLaeuft && c.rms >= kAmpMin) {
+      final pers = persistenz(probe, c.index);
+      if (pers >= kPersistLaeuft) {
+        return PumpeBefund(
+          status: LaufStatus.laeuft,
+          grund: PumpeGrund.ok,
+          text: kTextDirektLaeuft,
+          spitzeHz: c.hz,
+          spitzeRms: c.rms,
+          tonalitaet: c.tonalitaet,
+          ueberhoehung: c.ueberhoehung,
+          persistenzAnteil: pers,
+          nachweisGrenze: probe.nachweisGrenze,
+        );
+      }
+    }
+  }
+  if (spitzen.every((c) => c.tonalitaet < kTonSteht)) {
+    if (probe.fs < kFsMinSteht) return unklar(PumpeGrund.abtastrate, kTextRate);
+    if (probe.nachweisGrenze > kNachweisGrenze) {
+      return unklar(PumpeGrund.empfindlichkeit, kTextDirektNaeher);
+    }
+    return PumpeBefund(
+      status: LaufStatus.steht,
+      grund: PumpeGrund.ok,
+      text: kTextDirektSteht,
+      spitzeHz: probe.spitzeHz,
+      spitzeRms: probe.spitzeRms,
+      nachweisGrenze: probe.nachweisGrenze,
+    );
+  }
+  return unklar(PumpeGrund.schwach, kTextDirektNaeher, sp: spitzen.first);
+}
