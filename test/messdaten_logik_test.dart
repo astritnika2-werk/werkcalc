@@ -82,6 +82,6 @@ void main() {
     final txt = messdatenJson(
         szenario: 'x', notiz: '', zeit: DateTime(2026), dauerSek: 10, acc: acc, mikro: m, mikroStatus: 'ok', app: 't');
     expect(txt.length, lessThan(600000));
-    expect(m.zeiten.length, inInclusiveRange(18, 22));
+    expect(m.zeiten.length, inInclusiveRange(36, 40));
   });
 }
