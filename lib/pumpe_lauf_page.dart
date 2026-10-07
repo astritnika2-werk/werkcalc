@@ -80,8 +80,8 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> with SingleTickerProvider
           ..duration = const Duration(milliseconds: 1400)
           ..repeat();
       case PumpeAnzeige.steht:
-      case PumpeAnzeige.unklar:
         _anim.stop();
+      case PumpeAnzeige.unklar:
       case PumpeAnzeige.analyse:
         _anim
           ..duration = const Duration(milliseconds: 1600)
@@ -195,7 +195,8 @@ class RotorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final mitte = size.center(Offset.zero);
     final r = size.shortestSide / 2 - 8;
-    final puls = zustand == PumpeAnzeige.analyse ? (0.5 - 0.5 * math.cos(t * math.pi)) : 0.0;
+    final pulst = zustand == PumpeAnzeige.analyse || zustand == PumpeAnzeige.unklar;
+    final puls = pulst ? (0.5 - 0.5 * math.cos(t * math.pi)) : 0.0;
     canvas.drawCircle(mitte, r, Paint()..color = farbe.withValues(alpha: 0.10 + 0.14 * puls));
     canvas.drawCircle(
         mitte,
@@ -203,9 +204,9 @@ class RotorPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 8
-          ..color = farbe.withValues(alpha: 0.55 + 0.45 * (zustand == PumpeAnzeige.analyse ? puls : 1)));
+          ..color = farbe.withValues(alpha: 0.55 + 0.45 * (pulst ? puls : 1)));
     final winkel = zustand == PumpeAnzeige.laeuft ? t * 2 * math.pi : 0.0;
-    final fluegel = Paint()..color = farbe.withValues(alpha: zustand == PumpeAnzeige.analyse ? 0.45 + 0.4 * puls : 0.9);
+    final fluegel = Paint()..color = farbe.withValues(alpha: pulst ? 0.45 + 0.4 * puls : 0.9);
     canvas.save();
     canvas.translate(mitte.dx, mitte.dy);
     canvas.rotate(winkel);

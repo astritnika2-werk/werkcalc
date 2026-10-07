@@ -441,6 +441,16 @@ PumpeBefund bewertePumpe(Spektrum ref, Spektrum probe) {
 
 // ───────────────────── Direkte Erkennung (ohne Referenzmessung) ─────────────────────
 
+/// Direktmodus: Mindeststärke (rms über alle Achsen) einer Schwingung, damit sie als Pumpe zählt.
+/// Zur Einordnung: 0,03 m/s² entsprechen bei 50 Hz einer Schwinggeschwindigkeit von etwa 0,1 mm/s –
+/// weit unter dem, was ein laufender Motor am Gehäuse erzeugt, aber deutlich über Umgebungsrauschen.
+/// Interner Richtwert, keine Herstellervorgabe, keine Norm.
+const double kAmpMinDirekt = 0.03;
+
+/// Direktmodus: Schwingungen unter dieser Stärke (rms) verhindern „steht“ nicht. Dazwischen
+/// (0,015 … 0,03 m/s²) bleibt die Messung „nicht eindeutig“.
+const double kAmpSteht = 0.015;
+
 const double kTonSteht = 4.0; // Direktmodus: alle Spitzen < 4 × Rauschboden → keine Pumpenvibration
 const String kTextDirektLaeuft = 'Zirkulation erkannt';
 const String kTextDirektSteht = 'Keine typische Pumpenvibration erkannt';
@@ -477,7 +487,7 @@ PumpeBefund bewertePumpeDirekt(Spektrum probe) {
   spitzen.sort((a, c) => c.tonalitaet.compareTo(a.tonalitaet));
 
   for (final c in spitzen) {
-    if (c.tonalitaet >= kTonLaeuft && c.rms >= kAmpMin) {
+    if (c.tonalitaet >= kTonLaeuft && c.rms >= kAmpMinDirekt) {
       final pers = persistenz(probe, c.index);
       if (pers >= kPersistLaeuft) {
         return PumpeBefund(
@@ -494,7 +504,7 @@ PumpeBefund bewertePumpeDirekt(Spektrum probe) {
       }
     }
   }
-  if (spitzen.every((c) => c.tonalitaet < kTonSteht)) {
+  if (spitzen.where((c) => c.rms >= kAmpSteht).every((c) => c.tonalitaet < kTonSteht)) {
     if (probe.fs < kFsMinSteht) return unklar(PumpeGrund.abtastrate, kTextRate);
     if (probe.nachweisGrenze > kNachweisGrenze) {
       return unklar(PumpeGrund.empfindlichkeit, kTextDirektNaeher);

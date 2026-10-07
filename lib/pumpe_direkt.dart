@@ -18,6 +18,8 @@ class DirektAuswertung {
   double _letzterStabil = 0;
   LaufStatus? _kandidat;
   int _gleich = 0;
+  static const int laeuftGleich = 3; // „läuft“ erst nach drei übereinstimmenden Auswertungen
+  static const int stehtGleich = 2;
 
   PumpeAnzeige anzeige = PumpeAnzeige.analyse;
   PumpeBefund? befund;
@@ -76,7 +78,8 @@ class DirektAuswertung {
     if (kand == LaufStatus.steht && fensterDauer < stehtMinSek) kand = LaufStatus.unklar;
     _gleich = kand == _kandidat ? _gleich + 1 : 1;
     _kandidat = kand;
-    if (_gleich >= 2) {
+    final noetig = kand == LaufStatus.laeuft ? laeuftGleich : stehtGleich;
+    if (_gleich >= noetig) {
       switch (kand) {
         case LaufStatus.laeuft:
           anzeige = PumpeAnzeige.laeuft;

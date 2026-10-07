@@ -6,7 +6,7 @@ import 'package:werkcalc/pumpe_direkt.dart';
 
 /// Strom von Sensorwerten: [pumpeAb] Sekunde, ab der die Pumpe (Ton) „anliegt“; Handzittern bis [ruheAb].
 List<(double, double, double, double)> strom(math.Random r, double dauer, double fs,
-    {double amp = 0, double f0 = 47, double noise = 0.03, double zittern = 0.0, double pumpeAb = 0, double pumpeBis = 1e9, double ruheAb = 0}) {
+    {double amp = 0, double f0 = 47, double noise = 0.03, double zittern = 0.0, double pumpeAb = 0, double pumpeBis = 1e9, double ruheAb = 0, double quant = 0}) {
   double gauss() {
     final u = 1 - r.nextDouble();
     return math.sqrt(-2 * math.log(u)) * math.cos(2 * math.pi * r.nextDouble());
@@ -20,7 +20,8 @@ List<(double, double, double, double)> strom(math.Random r, double dauer, double
     final an = t >= pumpeAb && t < pumpeBis;
     final s = an ? amp * math.sin(2 * math.pi * f0 * t + ph) : 0.0;
     final h = t < ruheAb ? 1.5 * math.sin(2 * math.pi * 2.5 * t) : zittern * math.sin(2 * math.pi * 3 * t);
-    out.add((t, 0.3 + 0.5 * s + h + noise * gauss(), 0.2 + 0.3 * s + 0.5 * h + noise * gauss(), 9.81 + 0.8 * s + 0.7 * h + noise * gauss()));
+    double q(double v) => quant > 0 ? (v / quant).roundToDouble() * quant : v;
+    out.add((t, q(0.3 + 0.5 * s + h + noise * gauss()), q(0.2 + 0.3 * s + 0.5 * h + noise * gauss()), q(9.81 + 0.8 * s + 0.7 * h + noise * gauss())));
   }
   return out;
 }
@@ -103,5 +104,34 @@ void main() {
     final b = bewertePumpeDirekt(analysiere(sig));
     expect(b.spitzeHz! - 50, inInclusiveRange(-1.0, 1.0));
     expect(b.text, kTextDirektLaeuft);
+  });
+
+  test('Keine Pumpe / Ruhe: leiser Sensor (quantisiert) mit und ohne schwache Umgebungsschwingung → nie 🟢', () {
+    final r = math.Random(31);
+    for (var i = 0; i < 30; i++) {
+      for (final amp in [0.0, 0.005, 0.01, 0.02]) {
+        final z = abspielen(strom(r, 16, [100.0, 200.0, 400.0][i % 3],
+            amp: amp, f0: 20 + r.nextDouble() * 50, noise: [0.0005, 0.002, 0.005][i % 3], zittern: i % 2 == 0 ? 0.0 : 0.03, quant: 0.0024));
+        expect(z, isNot(contains(PumpeAnzeige.laeuft)), reason: 'i=$i amp=$amp: $z');
+      }
+    }
+  });
+
+  test('Beim Öffnen der Seite ist nie sofort 🟢 oder 🔴: die ersten 3 s immer „Analyse“', () {
+    final r = math.Random(32);
+    for (final amp in [0.0, 0.2]) {
+      final z = abspielen(strom(r, 4, 200, amp: amp, noise: 0.02));
+      expect(z.take(2), everyElement(PumpeAnzeige.analyse));
+    }
+  });
+
+  test('Ruhiger leiser Sensor ab 200 Hz ohne Ton → 🔴 (nicht ewig gelb)', () {
+    final r = math.Random(33);
+    var steht = 0;
+    for (var i = 0; i < 20; i++) {
+      final z = abspielen(strom(r, 14, 200, noise: 0.002, quant: 0.0024));
+      if (z.last == PumpeAnzeige.steht) steht++;
+    }
+    expect(steht, greaterThanOrEqualTo(14));
   });
 }

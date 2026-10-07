@@ -26,9 +26,10 @@ const _ziffern = [FontFeature.tabularFigures()];
 
 /// Zeitkonstante der reinen Anzeige-Beruhigung in Sekunden. Die Messung (GravityFilter,
 /// Kalibrierung, Berechnung) bleibt unverändert; nur was auf dem Bildschirm steht, wird
-/// zusätzlich geglättet. Zweite Stufe: gegenüber 0,15 s rund 30 % ruhiger (0,15 s × 1,3 ≈ 0,195 s).
+/// zusätzlich geglättet. Dritte Stufe: Bewegung rund 30 % langsamer (Geschwindigkeit × 0,7,
+/// also Zeitkonstante 0,195 s / 0,7 ≈ 0,279 s). Im Ruhezustand bleibt der Wert exakt der Messwert.
 /// Interner Anzeigewert, keine Herstellervorgabe, keine Norm.
-const double kAnzeigeTau = 0.195;
+const double kAnzeigeTau = 0.279;
 
 /// Einfache exponentielle Glättung (Tiefpass erster Ordnung) des Schwerkraftvektors
 /// nur für die Anzeige. Im Ruhezustand ist das Ergebnis exakt der Messwert (kein Versatz,
