@@ -29,7 +29,7 @@ const _ziffern = [FontFeature.tabularFigures()];
 /// zusätzlich geglättet. Dritte Stufe: Bewegung rund 30 % langsamer (Geschwindigkeit × 0,7,
 /// also Zeitkonstante 0,195 s / 0,7 ≈ 0,279 s). Im Ruhezustand bleibt der Wert exakt der Messwert.
 /// Interner Anzeigewert, keine Herstellervorgabe, keine Norm.
-const double kAnzeigeTau = 0.279;
+const double kAnzeigeTau = 0.349;
 
 /// Einfache exponentielle Glättung (Tiefpass erster Ordnung) des Schwerkraftvektors
 /// nur für die Anzeige. Im Ruhezustand ist das Ergebnis exakt der Messwert (kein Versatz,
@@ -958,8 +958,8 @@ class EinstellungenInhalt extends StatelessWidget {
                 SizedBox(height: 4),
                 Text(_kHinweis, style: TextStyle(color: _kText2)),
                 SizedBox(height: 8),
-                Text('„Waagerecht“ gilt bis ±0,2° je Achse (rund 3,5 mm/m) – interner Richtwert, '
-                    'keine Herstellervorgabe, keine Norm.',
+                Text('„Waagerecht“ gilt bis ±0,01° je Achse (rund 0,17 mm/m) – Zielwert, interner Richtwert, '
+                    'keine Herstellervorgabe, keine Norm. Die reale Genauigkeit hängt vom Gerät und der Kalibrierung ab.',
                     style: TextStyle(color: _kText2)),
               ]),
             ),

@@ -20,20 +20,20 @@ void main() {
     expect(richtungsText(n), 'Waagerecht');
   });
 
-  test('Sensorrauschen ±0,02 m/s² um flach bleibt in der Toleranz', () {
+  test('Sehr kleines Sensorrauschen (±0,0005 m/s² ≈ ±0,003°) um flach bleibt in der Toleranz', () {
     final r = math.Random(1);
     for (var i = 0; i < 500; i++) {
-      final nx = (r.nextDouble() - 0.5) * 0.04, ny = (r.nextDouble() - 0.5) * 0.04;
+      final nx = (r.nextDouble() - 0.5) * 0.001, ny = (r.nextDouble() - 0.5) * 0.001;
       final n = berechneNeigung(nx, ny, g);
       expect(richtungsText(n), 'Waagerecht', reason: 'x=$nx y=$ny a=${n.aGrad} b=${n.bGrad}');
     }
   });
 
-  test('Toleranzgrenze 0,2°: 0,15° waagerecht, 0,3° nicht', () {
-    expect(imToleranzbereich(0.15), isTrue);
-    expect(imToleranzbereich(-0.2), isTrue);
-    expect(imToleranzbereich(0.3), isFalse);
-    expect(imToleranzbereich(-0.5), isFalse);
+  test('Toleranzgrenze ±0,01°: 0,008° waagerecht, 0,02° nicht', () {
+    expect(imToleranzbereich(0.008), isTrue);
+    expect(imToleranzbereich(-0.01), isTrue);
+    expect(imToleranzbereich(0.02), isFalse);
+    expect(imToleranzbereich(-0.2), isFalse);
   });
 
   test('Neigung ändert die Anzeige in allen vier Richtungen: Gradzahl stimmt, Richtung stimmt', () {
@@ -53,14 +53,14 @@ void main() {
   });
 
   test('Eine Achse in Toleranz, die andere nicht: nur die abweichende wird genannt', () {
-    final w = vec(0.1, 1.0);
+    final w = vec(0.005, 1.0);
     final t = richtungsText(berechneNeigung(w.$1, w.$2, w.$3));
     expect(t.split(',').length, 1);
   });
 
-  test('Linie (Display vorne, Y senkrecht): 0,1° waagerecht, 1° nicht; Richtung stimmt', () {
+  test('Linie (Display vorne, Y senkrecht): 0,005° waagerecht, 1° nicht; Richtung stimmt', () {
     double rad(double d) => d * math.pi / 180;
-    final a = berechneLinie(Modus.linieDisplay, g * math.sin(rad(0.1)), g * math.cos(rad(0.1)), 0);
+    final a = berechneLinie(Modus.linieDisplay, g * math.sin(rad(0.005)), g * math.cos(rad(0.005)), 0);
     expect(linienRichtung(a), 'Waagerecht');
     final b = berechneLinie(Modus.linieDisplay, g * math.sin(rad(1)), g * math.cos(rad(1)), 0);
     expect(linienRichtung(b), 'Rechts höher');

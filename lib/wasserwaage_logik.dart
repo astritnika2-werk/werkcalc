@@ -277,13 +277,14 @@ String zahl(double v, [int stellen = 2]) {
   return s.replaceFirst('-', '−');
 }
 
-/// Toleranz für „waagerecht“ in Grad (je Achse). Interner Richtwert, keine Herstellervorgabe,
-/// keine Norm: Die Beschleunigungssensoren üblicher Smartphones liegen nach der Kalibrierung
-/// in der Größenordnung von ±0,1° bis ±0,2°; 0,2° entsprechen rund 3,5 mm/m.
-const double kWaagerechtToleranzGrad = 0.2;
+/// Toleranz für „waagerecht“ in Grad (je Achse): ±0,01° (rund 0,17 mm/m). Vom Nutzer gewählter
+/// Zielwert, interner Richtwert, keine Herstellervorgabe, keine Norm. Das ist sehr eng: Üblich
+/// liegt die Rauschstreuung der geglätteten Anzeige bei einem Smartphone-Sensor nur knapp
+/// darunter; die absolute Genauigkeit begrenzen Kalibrierung, Sensor-Offset und Untergrund.
+const double kWaagerechtToleranzGrad = 0.01;
 
 /// Liegt der (auf 2 Stellen gerundete) Winkel innerhalb der Waagerecht-Toleranz?
-bool imToleranzbereich(double grad) => grad.abs() <= kWaagerechtToleranzGrad + 1e-9 || zahl(grad) == '0,00';
+bool imToleranzbereich(double grad) => grad.abs() <= kWaagerechtToleranzGrad + 1e-9;
 
 /// Welche Seite höher liegt, aus denselben Werten wie die Anzeige
 /// (Rundung auf 2 Stellen wie in der Zahlenanzeige). Beispiel: „Rechts höher, vorne höher“.

@@ -128,7 +128,7 @@ void main() {
         t += 0.033;
       }
       expect(f.x, greaterThan(0.93));
-      expect(t, lessThan(0.9)); // ≈ 3 × 0,279 s: Anzeige absichtlich um 30 % langsamer
+      expect(t, lessThan(1.2)); // ≈ 3 × 0,349 s: Anzeige absichtlich langsamer (−30 %, dann −20 %)
     });
     test('Zahlen und Marker kommen aus demselben geglätteten Vektor', () {
       final f = AnzeigeFilter();
