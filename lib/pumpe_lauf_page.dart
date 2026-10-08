@@ -4,8 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-import 'pumpe_analyse.dart';
-import 'pumpe_direkt.dart';
+import 'pumpe_direkt.dart' show PumpeAnzeige;
+import 'pumpe_schnell.dart';
 
 const _kHinweis = 'Die Prüfung ist eine orientierende Messung mit dem Beschleunigungssensor des '
     'Smartphones. Sie erkennt nur, ob am Gehäuse eine typische gleichbleibende Motorvibration '
@@ -25,7 +25,7 @@ class PumpeLaufPage extends StatefulWidget {
 }
 
 class _PumpeLaufPageState extends State<PumpeLaufPage> with SingleTickerProviderStateMixin {
-  final DirektAuswertung _auswertung = DirektAuswertung();
+  final SchnellAuswertung _auswertung = SchnellAuswertung();
   StreamSubscription<AccelerometerEvent>? _sa;
   Timer? _timer;
   late final AnimationController _anim;
@@ -63,7 +63,7 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> with SingleTickerProvider
         setState(() => _fehler = 'Beschleunigungssensor nicht verfügbar – dieses Handy liefert keine Messwerte für diese Prüfung.');
       }
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       final alt = _auswertung.anzeige;
       final neu = _auswertung.auswerten();
       if (!mounted) return;
@@ -97,28 +97,27 @@ class _PumpeLaufPageState extends State<PumpeLaufPage> with SingleTickerProvider
       PumpeAnzeige.steht => (const Color(0xFFE5484D), 'PUMPE STEHT', 'Keine typische Pumpenvibration erkannt'),
       PumpeAnzeige.unklar => (
           const Color(0xFFF5B301),
-          'MESSUNG NICHT EINDEUTIG',
-          _auswertung.befund?.text ?? kTextDirektNaeher,
+          'NICHT EINDEUTIG',
+          'Bitte Smartphone direkt näher an die Pumpe halten',
         ),
       PumpeAnzeige.analyse => (
           const Color(0xFFF5B301),
           'ANALYSE LÄUFT …',
-          _auswertung.laufzeit < DirektAuswertung.minSek
-              ? 'Smartphone fest an die Pumpe halten und ruhig bleiben'
-              : 'Bitte weiter ruhig halten',
+          _auswertung.signalVerloren
+              ? 'Signal verloren – Smartphone direkt an die Pumpe halten'
+              : (_auswertung.laufzeit < SchnellAuswertung.fensterSek
+                  ? 'Smartphone fest an die Pumpe halten und ruhig bleiben'
+                  : 'Bitte weiter ruhig halten'),
         ),
     };
-    final b = _auswertung.befund;
-    final sp = _auswertung.spektrum;
+    final sp = _auswertung;
     final details = <String>[
-      'Messdauer: ${_z(_auswertung.laufzeit)} s (Fenster ${_z(_auswertung.fensterDauer)} s)',
-      if (sp != null) 'Abtastrate: ${_z(sp.fs, 0)} Hz, ${sp.n} Messwerte',
-      if (b?.spitzeHz != null) 'Stärkste Schwingung bei: ${_z(b!.spitzeHz!)} Hz',
-      if (b?.spitzeRms != null) 'Amplitude (rms): ${_z(b!.spitzeRms! * 1000)} mm/s²',
-      if (b?.tonalitaet != null) 'Tonalität (Spitze/Rauschboden): ${_z(b!.tonalitaet!)} ×',
-      if (b?.persistenzAnteil != null) 'In ${_z(b!.persistenzAnteil! * 100, 0)} % der Abschnitte vorhanden',
-      if (b?.nachweisGrenze != null) 'Nachweisgrenze: ${_z(b!.nachweisGrenze! * 1000)} mm/s²',
-      if (sp != null) 'Handbewegung (1,5–8 Hz): ${_z(sp.lfRms * 1000)} mm/s²',
+      'Messdauer: ${_z(sp.laufzeit)} s (Fenster ${_z(sp.fensterDauer)} s)',
+      if (sp.fs > 0) 'Abtastrate: ${_z(sp.fs, 0)} Hz, ${sp.n} Messwerte',
+      if (sp.linieHz != null) 'Stärkste Linie bei: ${_z(sp.linieHz!)} Hz',
+      if (sp.linieRms != null) 'Amplitude (rms): ${_z(sp.linieRms! * 1000)} mm/s²',
+      if (sp.linieKontrast != null) 'Kontrast zur Umgebung: ${_z(sp.linieKontrast!, 0)} ×',
+      if (sp.fs > 0) 'Handbewegung (1,5–8 Hz): ${_z(sp.lfRms * 1000)} mm/s²',
       'Interne Richtwerte, keine Herstellervorgabe, keine Norm.',
     ];
     return Scaffold(
