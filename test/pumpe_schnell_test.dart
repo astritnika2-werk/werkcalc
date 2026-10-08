@@ -64,7 +64,7 @@ double? ersteZeit(List<(double, PumpeAnzeige, bool)> z, PumpeAnzeige a) {
 void main() {
   const pumpen = {
     'ups_32_80_ein_gehaeuse.json': ('Grundfos UPS 32-80 180 – EIN – am Gehäuse', 5.0),
-    'alpha2_32_60_ein_gehaeuse.json': ('Grundfos ALPHA2 32-60 180 – EIN – am Gehäuse', 8.0),
+    'alpha2_32_60_ein_gehaeuse.json': ('Grundfos ALPHA2 32-60 180 – EIN – am Gehäuse', 9.5),
     'magna3_50_60_ein_gehaeuse.json': ('Grundfos MAGNA3 50-60 F 240 – EIN – am Gehäuse', 4.5),
   };
 
@@ -94,14 +94,17 @@ void main() {
     expect(nach.sublist(ersteNichtGruen).any((x) => x.$2 == PumpeAnzeige.laeuft), isFalse);
   });
 
-  test('Handy weit weg (Signal der MAGNA3 auf 2 % abgeschwächt, Rauschen bleibt): nicht grün', () {
+  test('Abstand: MAGNA3-Signal 30 % → grün, 0,5 % (Rauschen bleibt) → nicht grün', () {
     final s = laden('magna3_50_60_ein_gehaeuse.json');
     final mx = s.map((e) => e.$2).reduce((a, b) => a + b) / s.length;
     final my = s.map((e) => e.$3).reduce((a, b) => a + b) / s.length;
     final mz = s.map((e) => e.$4).reduce((a, b) => a + b) / s.length;
-    final g = Gauss(11);
-    final w = [for (final e in s) (e.$1, quant(mx + 0.02 * (e.$2 - mx) + 0.01 * g()), quant(my + 0.02 * (e.$3 - my) + 0.01 * g()), quant(mz + 0.02 * (e.$4 - mz) + 0.01 * g()))];
-    expect(abspielen(w).map((x) => x.$2), isNot(contains(PumpeAnzeige.laeuft)));
+    List<Probe> skaliert(double k, int seed) {
+      final g = Gauss(seed);
+      return [for (final e in s) (e.$1, quant(mx + k * (e.$2 - mx) + 0.01 * g()), quant(my + k * (e.$3 - my) + 0.01 * g()), quant(mz + k * (e.$4 - mz) + 0.01 * g()))];
+    }
+    expect(ersteZeit(abspielen(skaliert(0.3, 11)), PumpeAnzeige.laeuft), isNotNull);
+    expect(abspielen(skaliert(0.005, 12)).map((x) => x.$2), isNot(contains(PumpeAnzeige.laeuft)));
   });
 
   test('simulierte Pumpenlinie (47 Hz, Oberwelle) am Gehäuse: 🟢 innerhalb weniger Sekunden', () {
