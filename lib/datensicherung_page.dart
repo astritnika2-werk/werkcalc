@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'datensicherung.dart';
@@ -83,29 +83,65 @@ class _DatensicherungPageState extends State<DatensicherungPage> {
       '${s.listen.length} Baustellen mit ${s.anzahlPositionen} Positionen'
       '${s.materialkosten == null ? '' : ', ${s.materialkosten!.length} Materialkosten-Positionen'}';
 
-  Future<void> _ausDatei() async {
-    FilePickerResult? r;
+  /// Text der Sicherung eingeben/einfügen (aus der Zwischenablage).
+  Future<String?> _textEingabe() {
+    final c = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sicherungstext einfügen'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+              'Öffnen Sie die gespeicherte Sicherungsdatei in einer Text-App, kopieren Sie den ganzen Inhalt '
+              'und fügen Sie ihn hier ein.',
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: c,
+              maxLines: 6,
+              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: '{"format":"werkcalc-datensicherung", …'),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final d = await Clipboard.getData(Clipboard.kTextPlain);
+                  if (d?.text != null) c.text = d!.text!;
+                },
+                icon: const Icon(Icons.content_paste),
+                label: const Text('Aus Zwischenablage einfügen'),
+              ),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Abbrechen')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Prüfen')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _kopieren() async {
+    setState(() => _busy = true);
     try {
-      r = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+      final text = await _store.sicherungText();
+      await Clipboard.setData(ClipboardData(text: text));
+      _meldung('Sicherungstext kopiert. In einer Notiz-App oder Nachricht einfügen und sicher aufbewahren.');
     } catch (_) {
-      await _fehlerDialog('Datei nicht lesbar', 'Die Datei konnte nicht geöffnet werden. Ihre Daten wurden nicht verändert.');
-      return;
+      _meldung('Die Sicherung konnte nicht erstellt werden.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (r == null || r.files.isEmpty) return;
-    final bytes = r.files.first.bytes;
-    if (bytes == null) {
-      await _fehlerDialog('Datei nicht lesbar', 'Die Datei konnte nicht gelesen werden. Ihre Daten wurden nicht verändert.');
-      return;
-    }
-    if (bytes.length > kSicherungMaxZeichen) {
-      await _fehlerDialog('Datei zu groß', 'Das ist keine WerkCalc-Sicherung (Datei zu groß). Ihre Daten wurden nicht verändert.');
-      return;
-    }
-    String text;
-    try {
-      text = utf8.decode(bytes);
-    } catch (_) {
-      await _fehlerDialog('Datei nicht lesbar', 'Die Datei ist keine WerkCalc-Sicherung (kein Text). Ihre Daten wurden nicht verändert.');
+  }
+
+  Future<void> _ausText() async {
+    final text = await _textEingabe();
+    if (text == null || !mounted) return;
+    if (text.length > kSicherungMaxZeichen) {
+      await _fehlerDialog('Text zu groß', 'Das ist keine WerkCalc-Sicherung (Text zu groß). Ihre Daten wurden nicht verändert.');
       return;
     }
     final pr = pruefeSicherung(text);
@@ -115,8 +151,8 @@ class _DatensicherungPageState extends State<DatensicherungPage> {
     }
     final s = pr.sicherung!;
     final ja = await _frage(
-      'Aus Datei wiederherstellen?',
-      'Die Datei enthält ${_beschreibung(s)}'
+      'Aus Sicherung wiederherstellen?',
+      'Die Sicherung enthält ${_beschreibung(s)}'
       '${s.erstellt.millisecondsSinceEpoch > 0 ? ' (erstellt am ${formatDatum(s.erstellt)})' : ''}.\n\n'
       'Die aktuellen Baustellen und Materiallisten werden dadurch ersetzt. '
       'Der Stand davor wird als lokale Sicherung festgehalten.',
@@ -226,7 +262,7 @@ class _DatensicherungPageState extends State<DatensicherungPage> {
               ),
             const Text(
               'Die Sicherung enthält alle Baustellen und Materiallisten, eigene und zuletzt verwendete Artikel '
-              'und die Liste der Materialkosten. Sie ist eine Datei, die Sie selbst speichern oder weitergeben. '
+              'und die Liste der Materialkosten. Sie ist eine Datei (oder ein Text), die Sie selbst speichern oder weitergeben. '
               'WerkCalc sendet nichts ins Internet.',
               style: TextStyle(fontSize: 16),
             ),
@@ -238,9 +274,15 @@ class _DatensicherungPageState extends State<DatensicherungPage> {
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              onPressed: _busy ? null : _ausDatei,
+              onPressed: _busy ? null : _kopieren,
+              icon: const Icon(Icons.copy),
+              label: const Text('Sicherungstext kopieren'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _ausText,
               icon: const Icon(Icons.download),
-              label: const Text('Aus Datei wiederherstellen'),
+              label: const Text('Aus Sicherungstext wiederherstellen'),
             ),
             const SizedBox(height: 24),
             Text('Lokale Sicherungen auf dem Gerät', style: Theme.of(context).textTheme.titleMedium),
