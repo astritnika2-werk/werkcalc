@@ -791,3 +791,22 @@ KatalogArtikel? findeNachKennung(String code, List<KatalogArtikel> katalog) {
   }
   return treffer;
 }
+
+
+/// Am häufigsten verwendete Artikelnamen über alle Baustellen (nur Auswertung
+/// vorhandener Daten, es wird nichts gespeichert). Mindestens [minimum] Treffer;
+/// gleiche Anzahl: alphabetisch.
+List<String> haeufigsteArtikel(List<Baustelle> baustellen, {int limit = 10, int minimum = 2}) {
+  final z = <String, int>{};
+  for (final b in baustellen) {
+    for (final a in b.artikel) {
+      z[a.name] = (z[a.name] ?? 0) + 1;
+    }
+  }
+  final l = [for (final e in z.entries) if (e.value >= minimum) e]
+    ..sort((x, y) {
+      final c = y.value.compareTo(x.value);
+      return c != 0 ? c : x.key.compareTo(y.key);
+    });
+  return [for (final e in l.take(limit)) e.key];
+}

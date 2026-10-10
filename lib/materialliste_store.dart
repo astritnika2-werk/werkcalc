@@ -75,6 +75,12 @@ class MaterialListenStore extends ChangeNotifier {
   List<Baustelle> get listen => List.unmodifiable(_listen);
   List<KatalogArtikel> get zuletzt => List.unmodifiable(_zuletzt);
 
+  /// Häufig verwendete Artikel (aus den vorhandenen Listen berechnet).
+  List<KatalogArtikel> get haeufig => [
+        for (final n in haeufigsteArtikel(_listen))
+          if (_imKatalog(n) case final a?) a,
+      ];
+
   /// Katalog für Suche und Auswahl: eigene Artikel zuerst, dann eingebaute.
   List<KatalogArtikel> get katalog => [..._eigene, ..._basis];
 

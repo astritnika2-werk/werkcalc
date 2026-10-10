@@ -1231,6 +1231,23 @@ class _MaterialAuswahlPageState extends State<MaterialAuswahlPage> {
               ),
             ),
           ],
+          if (_store.haeufig.isNotEmpty) ...[
+            _kopf('Häufig verwendet'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final a in _store.haeufig)
+                    ActionChip(
+                      label: Text(a.name),
+                      onPressed: () => _waehle(a),
+                    ),
+                ],
+              ),
+            ),
+          ],
           _kopf('Kategorien'),
           for (final k in baum.keys)
             ListTile(
