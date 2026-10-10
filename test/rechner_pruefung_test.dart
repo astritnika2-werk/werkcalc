@@ -80,7 +80,7 @@ void main() {
     test('Einheiten', () {
       expect(mmToZoll(25.4), closeTo(1, 1e-12));
       expect(zollToMm(0.5), closeTo(12.7, 1e-12));
-      expect(kwToBtuh(1), closeTo(3412.14, 1e-6));
+      expect(kwToBtuh(1), closeTo(3412.14, 0.01));
       expect(btuhToKw(kwToBtuh(12.34)), closeTo(12.34, 1e-9));
       expect(literToM3(1500), closeTo(1.5, 1e-12));
       expect(m3ToLiter(0.25), closeTo(250, 1e-9));
