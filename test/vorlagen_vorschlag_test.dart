@@ -13,23 +13,23 @@ const Map<String, List<String>> kVorschlag = {
   'Waschbecken montieren': [
     'Waschtisch 60 cm', 'Waschtischarmatur Einhebelmischer', 'Ablaufgarnitur Waschtisch mit Überlauf',
     'Eckventil chrom ½"×⅜"', 'Anschlussschlauch ⅜" 500 mm', 'Flaschensiphon',
-    'Dichtung Siphon Set', 'Körperschalldämmung Waschtisch', 'Silikon sanitär',
+    'Dichtung Siphon Set', 'Körperschalldämmung Waschtisch', 'Silikon Sanitär weiß',
   ],
   'WC montieren': [
-    'WC wandhängend Tiefspüler', 'WC-Sitz', 'Spülkasten Unterputz', 'Vorwandelement WC',
+    'WC wandhängend Tiefspüler', 'WC-Sitz Standard', 'Spülkasten Unterputz', 'Vorwandelement WC Höhe 1120 mm',
     'Drückerplatte Dual weiß', 'Dichtung WC-Anschluss', 'Körperschalldämmung WC',
-    'WC-Anschlussbogen', 'Eckventil chrom ½"×⅜"', 'Anschlussschlauch ⅜" 300 mm',
+    'WC-Anschlussbogen DN 100', 'Eckventil chrom ½"×⅜"', 'Anschlussschlauch ⅜" 300 mm',
   ],
   'Wasserleitung verlegen': [
     'Kupferrohr Ø22 mm', 'Pressfitting Bogen 90° Ø22 (Kupfer)', 'Pressfitting Bogen 45° Ø22 (Kupfer)',
     'Pressfitting T-Stück Ø22 (Kupfer)', 'Pressfitting Muffe Ø22 (Kupfer)',
     'Pressfitting Endkappe Ø22 (Kupfer)', 'Rohrschelle Ø22 mit Gummieinlage', 'Isolierung Ø22',
-    'Kugelhahn 3/4', 'Dübel', 'Hanf Zopf 100 g',
+    'Kugelhahn ¾" IG/IG', 'Dübel 8 mm', 'Hanf Zopf 100 g',
   ],
   'Badsanierung': [
     'WC wandhängend Tiefspüler', 'Waschtisch 60 cm', 'Waschtischarmatur Einhebelmischer',
-    'Duscharmatur Unterputz Set', 'Duschsiphon', 'Badewannensiphon', 'Badheizkörper',
-    'Dichtband Wand/Boden', 'Vorwandelement WC', 'Drückerplatte Dual weiß',
+    'Duscharmatur Unterputz Set', 'Duschsiphon', 'Badewannensiphon', 'Badheizkörper 800×500',
+    'Dichtband Wand/Boden', 'Vorwandelement WC Höhe 1120 mm', 'Drückerplatte Dual weiß',
   ],
 };
 
