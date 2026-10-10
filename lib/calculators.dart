@@ -32,7 +32,7 @@ Widget _pumpePage({
     if (temperatur != null && (double.parse(o) - temperatur).abs() < 1e-9) temp = o;
   }
   String rau = '0.0015';
-  for (final o in const ['0.0015']) {
+  for (final o in const ['0.0015', '0.007']) {
     if (rauheit != null && (double.parse(o) - rauheit).abs() < 1e-9) rau = o;
   }
   return CalcPage(
@@ -60,6 +60,7 @@ Widget _pumpePage({
         '',
         options: const [
           CalcOption('Edelstahl', '0.0015'),
+          CalcOption('Mehrschichtverbund / PE-RT (k = 0,007 mm)', '0.007'),
         ],
         initial: rau,
       ),
@@ -362,6 +363,7 @@ final List<CalcDef> calculators = [
           '',
           options: [
             CalcOption('Edelstahl (k = 0,0015 mm)', '0.0015'),
+            CalcOption('Mehrschichtverbund / PE-RT (k = 0,007 mm)', '0.007'),
           ],
           initial: '0.0015',
         ),

@@ -2,6 +2,7 @@
 // passendem KATALOG-Artikel. Es wird nie ein neuer Artikel erfunden: Was nicht
 // eindeutig gefunden wird, bleibt für den Nutzer sichtbar zum Prüfen.
 
+import 'logic.dart' show parseNum;
 import 'materialliste.dart';
 
 enum Sicherheit {
@@ -85,7 +86,8 @@ String _tokenNorm(String t) => normalisiereSuche(t)
     .replaceAll(RegExp(r'^[./\-]+|[./\-]+$'), '');
 
 double? _zahlWert(String norm) {
-  if (_zifferRe.hasMatch(norm)) return double.tryParse(norm);
+  // Deutsche Schreibweise: „1.000“ = 1000 (Tausenderpunkt), „2.5“ = 2,5.
+  if (_zifferRe.hasMatch(norm)) return parseNum(norm);
   return _zahlWoerter[norm]?.toDouble();
 }
 

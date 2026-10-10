@@ -36,6 +36,14 @@ void main() {
     });
   });
 
+  group('Zahlen aus kopiertem Text', () {
+    test('Tausenderpunkt und Dezimalpunkt', () {
+      expect(erkenneText('1.000 Muffen 22', katalog).first.menge, 1000);
+      expect(erkenneText('2.5 m Kupferrohr 22', katalog).first.menge, 2.5);
+      expect(erkenneText('20 m Kupferrohr 22', katalog).first.menge, 20);
+    });
+  });
+
   group('Erkennung', () {
     test('Beispiel des Nutzers', () {
       final r = erkenneText(
