@@ -190,6 +190,15 @@ class _CalcPageState extends State<CalcPage> {
               padding: const EdgeInsets.only(bottom: 14),
               child: _buildField(i),
             ),
+          if (_controllers.any((c) => zahlWirdAlsTausenderGelesen(c.text)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Hinweis: „1.234“ wird als 1234 gelesen (Punkt = Tausendertrenner). '
+                'Für Dezimalstellen das Komma verwenden, z. B. „1,234“.',
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+              ),
+            ),
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(

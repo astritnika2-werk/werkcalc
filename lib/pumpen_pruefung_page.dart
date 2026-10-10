@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'logic.dart' show parseNum;
+import 'logic.dart' show parseNumDezimal;
 import 'pumpen_logik.dart';
 import 'pumpen_store.dart';
 
@@ -113,8 +113,8 @@ class _PumpenPruefungPageState extends State<PumpenPruefungPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final q = parseNum(_q.text);
-    final h = parseNum(_h.text);
+    final q = parseNumDezimal(_q.text);
+    final h = parseNumDezimal(_h.text);
     final pumpe = _pumpe;
     final kurve = (pumpe != null && pumpe.kurven.isNotEmpty)
         ? pumpe.kurven[_kurveIdx.clamp(0, pumpe.kurven.length - 1).toInt()]

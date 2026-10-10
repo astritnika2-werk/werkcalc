@@ -59,6 +59,10 @@ class AngebotStorage {
           MaterialPosition.fromJson(Map<String, dynamic>.from(e as Map)),
       ];
     } catch (_) {
+      // Nicht lesbar: Rohdaten als Kopie sichern, bevor eine neue Liste sie überschreibt.
+      if (p.getString('werkcalc_defekt_$_kMaterial') == null) {
+        await p.setString('werkcalc_defekt_$_kMaterial', raw);
+      }
       return [];
     }
   }

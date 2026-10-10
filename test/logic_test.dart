@@ -324,5 +324,60 @@ void main() {
       expect(parseNum(''), isNull);
       expect(parseNum('abc'), isNull);
     });
+
+    test('Deutsche Schreibweise: 1,5 / 1.234 / 1.234,56 €', () {
+      expect(parseNum('1,5'), 1.5);
+      expect(parseNum('1.234'), 1234);
+      expect(parseNum('12.345'), 12345);
+      expect(parseNum('1.234.567'), 1234567);
+      expect(parseNum('1.234,56'), 1234.56);
+      expect(parseNum('1.234,56 €'), 1234.56);
+      expect(parseNum('1.234,56€'), 1234.56);
+      expect(parseNum(' 1 234,5 '), 1234.5);
+      expect(parseNum('1\u00A0234,5'), 1234.5);
+      expect(parseNum('1.000'), 1000);
+      expect(parseNum('10.500'), 10500);
+    });
+
+    test('Bestehende Eingaben mit Dezimalpunkt bleiben Dezimalzahlen', () {
+      expect(parseNum('12.5'), 12.5);
+      expect(parseNum('1.5'), 1.5);
+      expect(parseNum('0.0015'), 0.0015);
+      expect(parseNum('0.123'), 0.123);
+      expect(parseNum('1.2345'), 1.2345);
+      expect(parseNum('.5'), 0.5);
+      expect(parseNum(',5'), 0.5);
+      expect(parseNum('2,50'), 2.5);
+      expect(parseNum('1,234'), 1.234); // Komma ist immer das Dezimalzeichen
+      expect(parseNum('1,234.56'), 1234.56);
+    });
+
+    test('Ungültige Eingaben ergeben null', () {
+      for (final t in ['1,2,3', '1.2.3', '1,234,567', '--1', '1e', ',', '.', '€', '1.234,5.6', '1,2.3,4']) {
+        expect(parseNum(t), isNull, reason: t);
+      }
+    });
+
+    test('Dezimal-Variante für Felder ohne Tausender (Kennlinien)', () {
+      expect(parseNumDezimal('1.250'), 1.25);
+      expect(parseNumDezimal('2,5'), 2.5);
+      expect(parseNumDezimal('1.234,56'), 1234.56);
+      expect(parseNumDezimal('abc'), isNull);
+    });
+
+    test('Hinweis nur bei Punkt-Dreiergruppen', () {
+      expect(zahlWirdAlsTausenderGelesen('1.234'), isTrue);
+      expect(zahlWirdAlsTausenderGelesen('1.234.567'), isTrue);
+      expect(zahlWirdAlsTausenderGelesen('12.5'), isFalse);
+      expect(zahlWirdAlsTausenderGelesen('0.123'), isFalse);
+      expect(zahlWirdAlsTausenderGelesen('1.234,5'), isFalse);
+      expect(zahlWirdAlsTausenderGelesen('1234'), isFalse);
+    });
+
+    test('Rundlauf fmt → parseNum', () {
+      for (final v in [0.0, 1.5, 12.34, 999.99, 1234.5, 98765.43, 1234567.89]) {
+        expect(parseNum(fmt(v)), closeTo(v, 0.0051), reason: '$v');
+      }
+    });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'datensicherung_page.dart';
 import 'erkennung_page.dart';
 import 'logic.dart';
 import 'materialliste.dart';
@@ -312,13 +313,40 @@ class _MaterialListenTabState extends State<MaterialListenTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Materiallisten')),
+      appBar: AppBar(
+        title: const Text('Materiallisten'),
+        actions: [
+          IconButton(
+            tooltip: 'Datensicherung',
+            icon: const Icon(Icons.save_alt),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DatensicherungPage()),
+            ),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           final listen = _store.listen;
+          final hinweis = _store.problem == null
+              ? null
+              : Card(
+                  color: Colors.orange.shade50,
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: ListTile(
+                    leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                    title: Text(_store.problem!),
+                    trailing: TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const DatensicherungPage()),
+                      ),
+                      child: const Text('Öffnen'),
+                    ),
+                  ),
+                );
           if (listen.isEmpty) {
-            return const Center(
+            final leer = const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text(
@@ -329,8 +357,9 @@ class _MaterialListenTabState extends State<MaterialListenTab> {
                 ),
               ),
             );
+            return Column(children: [if (hinweis != null) hinweis, Expanded(child: leer)]);
           }
-          return ListView.builder(
+          final liste = ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
             itemCount: listen.length,
             itemBuilder: (context, i) {
@@ -369,6 +398,7 @@ class _MaterialListenTabState extends State<MaterialListenTab> {
               );
             },
           );
+          return Column(children: [if (hinweis != null) hinweis, Expanded(child: liste)]);
         },
       ),
       floatingActionButton: FloatingActionButton.extended(

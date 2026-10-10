@@ -9,10 +9,19 @@ const double kMmPerZoll = 25.4;
 /// Referenz-Raumhöhe, auf die sich die W/m²-Richtwerte beziehen.
 const double kReferenzRaumhoehe = 2.5;
 
-/// Liest eine Zahl; akzeptiert Komma und Punkt als Dezimaltrenner.
-/// Beispiele: "12,5" und "12.5" ergeben 12,5; "1.234,56" und "1,234.56" ergeben 1234,56.
+final RegExp _tausenderMuster = RegExp(r'^[1-9]\d{0,2}(\.\d{3})+$');
+
+/// Liest eine Zahl in deutscher Schreibweise.
+///   „1,5“ = 1,5 · „1.234“ = 1234 · „1.234,56“ = 1234,56 · „1.234,56 €“ = 1234,56
+/// Der Punkt gilt nur dann als Tausendertrenner, wenn er Dreiergruppen bildet
+/// („1.234“, „12.345“, „1.234.567“). Alles andere mit Punkt bleibt eine Dezimalzahl
+/// („12.5“, „0.0015“, „1.2345“). Sind Punkt und Komma vorhanden, ist das zuletzt
+/// stehende Zeichen das Dezimalzeichen (auch „1,234.56“ wird als 1234,56 gelesen).
+/// Leerzeichen und „€“ werden ignoriert. Ungültiges ergibt null.
 double? parseNum(String input) {
-  var t = input.trim().replaceAll(' ', '');
+  var t = input
+      .replaceAll(RegExp(r'[\s\u00A0\u202F]'), '')
+      .replaceAll('€', '');
   if (t.isEmpty) return null;
   final lastComma = t.lastIndexOf(',');
   final lastDot = t.lastIndexOf('.');
@@ -25,8 +34,41 @@ double? parseNum(String input) {
     }
   } else if (lastComma >= 0) {
     t = t.replaceAll(',', '.');
+  } else if (lastDot >= 0 && _tausenderMuster.hasMatch(t)) {
+    t = t.replaceAll('.', '');
   }
-  return double.tryParse(t);
+  final v = double.tryParse(t);
+  if (v == null || v.isNaN || v.isInfinite) return null;
+  return v;
+}
+
+/// Wie [parseNum], aber ein einzelner Punkt oder ein einzelnes Komma ist immer ein
+/// Dezimalzeichen („1.250“ = 1,25). Für Felder, in denen es keine Tausender gibt
+/// (z. B. Kennlinienpunkte Q in m³/h und H in m).
+double? parseNumDezimal(String input) {
+  var t = input.replaceAll(RegExp(r'[\s\u00A0\u202F]'), '');
+  if (t.isEmpty) return null;
+  final lastComma = t.lastIndexOf(',');
+  final lastDot = t.lastIndexOf('.');
+  if (lastComma >= 0 && lastDot >= 0) {
+    if (lastComma > lastDot) {
+      t = t.replaceAll('.', '').replaceAll(',', '.');
+    } else {
+      t = t.replaceAll(',', '');
+    }
+  } else if (lastComma >= 0) {
+    t = t.replaceAll(',', '.');
+  }
+  final v = double.tryParse(t);
+  if (v == null || v.isNaN || v.isInfinite) return null;
+  return v;
+}
+
+/// true, wenn die Eingabe nach deutscher Regel als Tausender gelesen wird
+/// („1.234“ = 1234). Dient für einen Hinweis in der Oberfläche.
+bool zahlWirdAlsTausenderGelesen(String input) {
+  final t = input.replaceAll(RegExp(r'[\s\u00A0\u202F]'), '');
+  return !t.contains(',') && _tausenderMuster.hasMatch(t);
 }
 
 /// Formatiert deutsch: 1.234,56

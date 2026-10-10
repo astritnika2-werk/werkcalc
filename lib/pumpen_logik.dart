@@ -4,7 +4,7 @@
 // oder als geprüfte Herstellerdaten in assets/pumpen/pumpen.json).
 // Reine Dart-Logik ohne Flutter, damit sie testbar bleibt.
 
-import 'logic.dart' show parseNum;
+import 'logic.dart' show parseNumDezimal;
 
 /// Ein Punkt der Kennlinie: Volumenstrom q (m³/h) und Förderhöhe h (m).
 class QH {
@@ -149,8 +149,8 @@ class PumpenDaten {
     final z = zeile.trim();
     if (z.isEmpty) continue;
     final teile = z.split(RegExp(r'[\s;]+')).where((t) => t.isNotEmpty).toList();
-    final q = teile.length == 2 ? parseNum(teile[0]) : null;
-    final h = teile.length == 2 ? parseNum(teile[1]) : null;
+    final q = teile.length == 2 ? parseNumDezimal(teile[0]) : null;
+    final h = teile.length == 2 ? parseNumDezimal(teile[1]) : null;
     if (q == null || h == null) {
       fehler.add('Zeile $nr: „$z“ nicht lesbar (erwartet: Q und H, z. B. 2,5 3,1)');
     } else {
