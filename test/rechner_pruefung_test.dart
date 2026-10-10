@@ -122,7 +122,7 @@ void main() {
       expect(rohrInhaltLiter(20, 0), 0);
       expect(gefaelleHoeheCm(10, 0), 0);
     });
-  })
+  });
 
   test('Rohrrauheit: Verbundrohr (k = 0,007 mm) hat mehr Rohrreibung als 0,0015 mm', () {
     double r(double k) => berechneDruckverlust(
