@@ -45,7 +45,6 @@ void main() {
         b.writeln('FEHLT [$v] $n -> $r');
       }
     });
-    // ignore: avoid_print
-    print(b.isEmpty ? 'ALLE VORHANDEN' : b.toString());
+    expect(b.toString(), isEmpty, reason: 'Fehlende Namen');
   });
 }
