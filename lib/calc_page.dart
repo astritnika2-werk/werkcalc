@@ -48,6 +48,9 @@ class CalcWeiter {
 
 typedef ComputeFn = List<ResultRow> Function(List<double?> values);
 
+/// Liefert eine konkrete Fehlermeldung oder null, wenn gerechnet werden kann.
+typedef PruefFn = String? Function(List<double?> values);
+
 /// Generische Rechner-Seite: Eingabefelder oben, Ergebnisse live darunter.
 /// Alles läuft lokal auf dem Gerät, es werden keine Daten gespeichert.
 class CalcPage extends StatefulWidget {
@@ -61,8 +64,10 @@ class CalcPage extends StatefulWidget {
     this.vorschlaege,
     this.richtwert = false,
     this.weiter,
+    this.pruefung,
   });
 
+  final PruefFn? pruefung;
   final String title;
   final List<CalcField> fields;
   final ComputeFn compute;
@@ -157,13 +162,34 @@ class _CalcPageState extends State<CalcPage> {
     );
   }
 
+  String _leerText(List<double?> values, bool ready) {
+    final fehlt = <String>[];
+    final unlesbar = <String>[];
+    for (var i = 0; i < values.length; i++) {
+      final f = widget.fields[i];
+      if (values[i] != null || f.options != null) continue;
+      (_controllers[i].text.trim().isEmpty ? fehlt : unlesbar).add(f.label);
+    }
+    if (unlesbar.isNotEmpty) {
+      return 'Eingabe nicht lesbar: ${unlesbar.join(', ')}. '
+          'Bitte nur Ziffern und ein Komma verwenden, z. B. 12,5.';
+    }
+    if (!ready && widget.requireAll && fehlt.isNotEmpty) {
+      return 'Bitte noch eingeben: ${fehlt.join(', ')}.';
+    }
+    if (!ready) return 'Bitte mindestens einen Wert eingeben.';
+    return 'Mit diesen Werten ist keine Berechnung möglich. Bitte die Eingaben prüfen.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final values = [for (final c in _controllers) parseNum(c.text)];
     final ready = widget.requireAll
         ? values.every((v) => v != null)
         : values.any((v) => v != null);
-    final rows = ready ? widget.compute(values) : <ResultRow>[];
+    final meldung = ready ? widget.pruefung?.call(values) : null;
+    final rows = (ready && meldung == null) ? widget.compute(values) : <ResultRow>[];
+    final leerText = meldung ?? _leerText(values, ready);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -202,7 +228,7 @@ class _CalcPageState extends State<CalcPage> {
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(
-              'Bitte gültige Werte eingeben.',
+              leerText,
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
             )
           else

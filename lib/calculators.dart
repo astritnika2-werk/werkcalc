@@ -4,6 +4,7 @@ import 'calc_page.dart';
 import 'logic.dart';
 import 'materialkosten_page.dart';
 import 'pumpen_pruefung_page.dart';
+import 'rechner_pruefung.dart';
 import 'messen_pruefen_page.dart';
 import 'vorschlag.dart';
 
@@ -41,6 +42,7 @@ Widget _pumpePage({
         'und Widerstände von Wärmeerzeuger, Ventilen und Mischern laut Herstellerangabe.',
     requireAll: false,
     richtwert: true,
+    pruefung: prueferPumpe,
     weiter: CalcWeiter('Weiter: Pumpe prüfen (Kennlinie)', (v) {
       final a = _pumpeAus(v);
       return PumpenPruefungPage(q: a?.volumenstromM3h, h: a?.foerderhoeheM);
@@ -175,6 +177,7 @@ final List<CalcDef> calculators = [
         ),
         CalcField('Länge', 'm'),
       ],
+      pruefung: pruefeRohrinhalt,
       compute: (v) {
         final dMm = (v[1] ?? 1) == 2 ? zollToMm(v[0]!) : v[0]!;
         if (dMm <= 0 || v[2]! <= 0) return [];
@@ -200,6 +203,7 @@ final List<CalcDef> calculators = [
         CalcField('Rohrlänge', 'm'),
         CalcField('Gefälle', '%', initial: '2'),
       ],
+      pruefung: pruefeGefaelle,
       compute: (v) {
         final rows = <ResultRow>[];
         double? laenge = v[2];
@@ -239,6 +243,7 @@ final List<CalcDef> calculators = [
           Vorschlag('Isolierung Ø${d.round()}', l, 'Rohr Ø ${fmt(d, digits: 0)} mm, ${fmt(l)} m'),
         ];
       },
+      pruefung: pruefeIsolierung,
       compute: (v) {
         if (v[0]! <= 0 || v[1]! < 0 || v[2]! <= 0) return [];
         final i = berechneIsolierung(
@@ -285,6 +290,7 @@ final List<CalcDef> calculators = [
         Vorschlag('Rücklaufverschraubung gerade ½"', 1, 'je Heizkörper'),
         Vorschlag('Heizkörper-Entlüfter ½"', 1, 'je Heizkörper'),
       ],
+      pruefung: pruefeHeizkoerper,
       compute: (v) {
         if (v[0]! <= 0 || v[1]! <= 0 || v[2]! <= 0) return [];
         final w = heizleistungW(
@@ -311,6 +317,7 @@ final List<CalcDef> calculators = [
         CalcField('Leistung', 'kW'),
         CalcField('Leistung', 'BTU/h'),
       ],
+      pruefung: pruefeEinFeld,
       compute: (v) {
         final rows = <ResultRow>[];
         if (v[0] != null) {
@@ -387,6 +394,7 @@ final List<CalcDef> calculators = [
           temperatur: v[5],
         ),
       ),
+      pruefung: pruefeDruckverlust,
       compute: (v) {
         final q = v[0];
         final d = v[2];
@@ -443,6 +451,7 @@ final List<CalcDef> calculators = [
         CalcField('Volumen', 'Liter'),
         CalcField('Volumen', 'm³'),
       ],
+      pruefung: pruefeEinFeld,
       compute: (v) {
         final rows = <ResultRow>[];
         if (v[0] != null) {
@@ -466,6 +475,7 @@ final List<CalcDef> calculators = [
         CalcField('Millimeter', 'mm'),
         CalcField('Zoll', '"'),
       ],
+      pruefung: pruefeEinFeld,
       compute: (v) {
         final rows = <ResultRow>[];
         if (v[0] != null) {
@@ -496,6 +506,7 @@ final List<CalcDef> calculators = [
         CalcField('Anfahrt (netto)', '€', initial: '0'),
         CalcField('MwSt.-Satz', '%', initial: '19'),
       ],
+      pruefung: pruefeArbeitszeit,
       compute: (v) {
         if (v[0] == null || v[1] == null) return [];
         final rate = v[3] ?? 19;
@@ -533,6 +544,7 @@ final List<CalcDef> calculators = [
         CalcField('Bruttobetrag', '€'),
         CalcField('MwSt.-Satz', '%', initial: '19'),
       ],
+      pruefung: pruefeMwst,
       compute: (v) {
         final satz = v[2] ?? 19;
         final rows = <ResultRow>[];
