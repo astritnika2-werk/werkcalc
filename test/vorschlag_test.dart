@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:werkcalc/katalog.dart';
 import 'package:werkcalc/logic.dart';
+import 'package:werkcalc/vorschlag.dart';
 
 void main() {
   final namen = baueKatalog().map((a) => a.name).toSet();
@@ -29,5 +30,13 @@ void main() {
       pruefe(n);
     }
     if (fehlt.isNotEmpty) fail('nicht im Katalog: ${fehlt.join(' | ')}');
+  });
+
+  test('fehlende Vorschläge werden gemeldet, nicht ersetzt', () {
+    final f = fehlendeVorschlaege(
+      [const Vorschlag('Thermostatkopf', 1, 'x'), const Vorschlag('Gibt es nicht 123', 1, 'y')],
+      namen,
+    );
+    expect(f, ['Gibt es nicht 123']);
   });
 }

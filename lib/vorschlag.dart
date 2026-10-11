@@ -16,6 +16,10 @@ class Vorschlag {
   final String grund;
 }
 
+/// Namen der Vorschläge, die es im Katalog NICHT gibt (werden nie ersetzt oder geraten).
+List<String> fehlendeVorschlaege(Iterable<Vorschlag> vorschlaege, Set<String> katalogNamen) =>
+    [for (final v in vorschlaege) if (!katalogNamen.contains(v.name)) v.name];
+
 /// Zeigt die Vorschläge zum Ankreuzen. Nichts wird automatisch hinzugefügt:
 /// Der Nutzer wählt aus und bestätigt mit „Zur Materialliste hinzufügen“.
 class VorschlagKarte extends StatefulWidget {
@@ -159,7 +163,18 @@ class _VorschlagKarteState extends State<VorschlagKarte> {
           for (final v in widget.vorschlaege)
             if (_finde(v.name) case final a?) _Zeile(v, a),
         ];
-        if (zeilen.isEmpty) return const SizedBox.shrink();
+        final fehlend = fehlendeVorschlaege(widget.vorschlaege, {for (final a in _store.katalog) a.name});
+        if (zeilen.isEmpty) {
+          if (fehlend.isEmpty || _store.katalog.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(
+              'Kein passender Katalogartikel für: ${fehlend.join(', ')}. '
+              'Bitte in der Materialliste selbst suchen.',
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          );
+        }
         final anzahl = zeilen.where((z) => _aktiv.contains(z.v.name)).length;
         final scheme = Theme.of(context).colorScheme;
         return Card(
@@ -200,6 +215,14 @@ class _VorschlagKarteState extends State<VorschlagKarte> {
                     style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                 ),
+                if (fehlend.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                    child: Text(
+                      'Nicht im Katalog (nicht aufgeführt): ${fehlend.join(', ')}.',
+                      style: const TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  ),
                 for (final z in zeilen)
                   CheckboxListTile(
                     dense: true,
