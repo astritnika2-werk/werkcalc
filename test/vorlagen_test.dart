@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:werkcalc/datensicherung.dart';
 import 'package:werkcalc/katalog.dart';
 import 'package:werkcalc/materialliste.dart';
 import 'package:werkcalc/materialliste_store.dart';
@@ -205,6 +206,25 @@ void main() {
       expect(b.artikel.map((x) => (x.name, x.menge)), [('Thermostatkopf', 2.0), ('Hanf Zopf 100 g', 1.5)]);
       final a = s.finde('a')!;
       expect(jsonEncode(a.toJson()), jsonEncode(alt.first.toJson()));
+    });
+
+    test('Sicherung/Wiederherstellung: Vorlagen-Baustelle und bestehende Liste bleiben vollständig erhalten', () async {
+      final alt = Baustelle(
+        id: 'a', name: 'Müllerstraße', erstellt: DateTime.fromMillisecondsSinceEpoch(1760000000000),
+        artikel: const [ListenArtikel(id: 'a-0', name: 'Thermostatkopf', menge: 3, einheit: 'Stk.')],
+      );
+      SharedPreferences.setMockInitialValues({'materiallisten_v1': jsonEncode([alt.toJson()])});
+      final s = MaterialListenStore.fuerTest();
+      await s.laden();
+      await vorlageAlsNeueBaustelle(s, 'Bad Test', const [VorlagenAuswahl('Thermostatkopf', 2)]);
+      final text = sicherungAlsJson(Sicherung(erstellt: DateTime(2026, 10, 11), listen: s.listen));
+      final r = pruefeSicherung(text);
+      expect(r.ok, isTrue, reason: '${r.fehler}');
+      expect(r.sicherung!.listen.length, 2);
+      expect(
+        jsonEncode([for (final b in r.sicherung!.listen) b.toJson()]),
+        jsonEncode([for (final b in s.listen) b.toJson()]),
+      );
     });
   });
 }
