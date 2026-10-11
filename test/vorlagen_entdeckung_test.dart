@@ -15,10 +15,14 @@ const praefixe = [
 
 void main() {
   final k = baueKatalog();
-  for (final p in praefixe.skip(11)) {
-    test('V $p', () {
-      final n = k.where((a) => a.name.startsWith(p)).map((a) => a.name).toSet().toList();
-      expect('## $p (${n.length}): ${n.take(18).join(' | ')}', isEmpty);
+  for (var g = 0; g < 4; g++) {
+    test('Gruppe $g', () {
+      final b = StringBuffer();
+      for (final p in praefixe.skip(13 + g * 9).take(9)) {
+        final n = k.where((a) => a.name.startsWith(p)).map((a) => a.name).toSet().toList();
+        b.writeln('## $p (${n.length}): ${n.take(18).join(' | ')}');
+      }
+      fail(b.toString());
     });
   }
 }
