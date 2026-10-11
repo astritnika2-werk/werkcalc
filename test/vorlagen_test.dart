@@ -141,6 +141,27 @@ void main() {
     }
   });
 
+  test('Badsanierung: Abdichtung warnt, dass es kein vollständiges System sein muss', () {
+    final abd = vorlage('Badsanierung').zonen.firstWhere((z) => z.name == 'Abdichtung');
+    expect(abd.hinweis, contains('nicht zwingend ein vollständiges Abdichtungssystem'));
+  });
+
+  test('Badsanierung: kein Artikel kommt in zwei Positionen vor', () {
+    final z = vorlage('Badsanierung').zonen;
+    final alle = <String>[];
+    for (final zone in z) {
+      for (final p in [...zone.posten, ...zone.modi.expand((m) => m.posten)]) {
+        alle.addAll(p.varianten);
+      }
+    }
+    final doppelt = <String>{};
+    final gesehen = <String>{};
+    for (final n in alle) {
+      if (!gesehen.add(n)) doppelt.add(n);
+    }
+    expect(doppelt, isEmpty, reason: 'doppelt: $doppelt');
+  });
+
   group('Auswahl und Speichern', () {
     test('Menge: leer = nicht ausgewählt, 0/negativ = Fehler, unbekannter Name = Fehler', () {
       final r = pruefeAuswahl([

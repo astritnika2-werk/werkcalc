@@ -381,7 +381,9 @@ const _badsanierung = Vorlage(
     ]),
     VorlagenZone(
       'Abdichtung',
-      hinweis: 'Es sind nur die Artikel aufgeführt, die im Katalog vorhanden sind.',
+      hinweis: 'Achtung: Die hier aufgeführten Artikel sind nicht zwingend ein vollständiges Abdichtungssystem. '
+          'Es sind nur Artikel aufgeführt, die im Katalog vorhanden sind. '
+          'Systemaufbau und Herstellerangaben müssen separat geprüft werden.',
       posten: [
         VorlagenPosten('Verbundabdichtung Dusche', ['Verbundabdichtung Dusche'], _x),
         VorlagenPosten('Dichtband Wand/Boden', ['Dichtband Wand/Boden'], _s),
