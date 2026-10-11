@@ -280,8 +280,12 @@ List<VorlagenZone> wasserleitungZonen(Map<String, String> p) {
           'Rohrschelle',
           kupfer
               ? [
-                  'Rohrschelle Ø$d mit Gummieinlage', 'Rohrschelle Ø$d verzinkt', 'Rohrschelle Ø$d Edelstahl',
-                  'Rohrschelle Ø$d mit Schnellverschluss', 'Rohrschelle Ø$d mit Gewindestange',
+                  'Rohrschelle Ø$d mit Gummieinlage', 'Rohrschelle Ø$d verzinkt',
+                  // Für Ø12 gibt es diese Varianten im Katalog nicht.
+                  if (d != 12) ...[
+                    'Rohrschelle Ø$d Edelstahl', 'Rohrschelle Ø$d mit Schnellverschluss',
+                    'Rohrschelle Ø$d mit Gewindestange',
+                  ],
                 ]
               : ['Rohrschelle Ø$d Edelstahl', 'Rohrschelle Ø$d mit Gummieinlage'],
           _s,
