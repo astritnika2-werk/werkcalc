@@ -131,4 +131,45 @@ void main() {
     expect(r(0.007), greaterThan(r(0.0015)));
     expect(r(0.007), lessThan(r(0.0015) * 1.3));
   });
+
+  group('Colebrook-White: Gegenrechnung ohne die App-Iteration', () {
+    // Löst 1/√λ = -2·log10(k/(3,7·d) + 2,51/(Re·√λ)) durch Intervallhalbierung.
+    double colebrook(double re, double relK) {
+      double f(double lam) =>
+          1 / math.sqrt(lam) +
+          2 * (math.log(relK / 3.7 + 2.51 / (re * math.sqrt(lam))) / math.ln10);
+      var lo = 0.005, hi = 0.2;
+      for (var i = 0; i < 200; i++) {
+        final mid = (lo + hi) / 2;
+        if (f(lo) * f(mid) <= 0) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+      }
+      return (lo + hi) / 2;
+    }
+
+    test('Reibungsbeiwert stimmt mit der unabhängigen Lösung überein', () {
+      for (final re in [4000.0, 1e4, 3e4, 1e5, 1e6]) {
+        for (final k in [0.0015, 0.007, 0.045]) {
+          final rel = (k / 1000) / 0.020; // Ø20 mm
+          expect(reibungsbeiwert(re, rel), closeTo(colebrook(re, rel), 1e-7),
+              reason: 'Re=$re k=$k');
+        }
+      }
+    });
+
+    test('Bekannte Stützwerte (Moody-Diagramm): glatt Re=1e5 ≈ 0,018; ε/D=1e-4 ≈ 0,0185', () {
+      expect(reibungsbeiwert(1e5, 0), closeTo(0.0180, 0.0003));
+      expect(reibungsbeiwert(1e5, 1e-4), closeTo(0.0185, 0.0003));
+    });
+
+    test('Rohrreibung nutzt k absolut in mm (k/d)', () {
+      // gleiches k, doppelter Durchmesser → halbe relative Rauheit
+      final r1 = berechneDruckverlust(
+          volumenstromM3s: 0.0003, durchmesserMm: 20, laengeM: 1, temperaturC: 60, rauheitMm: 0.0015);
+      expect(r1.lambda, closeTo(reibungsbeiwert(r1.reynolds, 0.0015 / 20), 1e-12));
+    });
+  });
 }

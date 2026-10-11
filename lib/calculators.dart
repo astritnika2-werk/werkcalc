@@ -59,8 +59,8 @@ Widget _pumpePage({
         'Rohrmaterial',
         '',
         options: const [
-          CalcOption('Edelstahl', '0.0015'),
-          CalcOption('Mehrschichtverbund / PE-RT (k = 0,007 mm)', '0.007'),
+          CalcOption('Edelstahl – Oberflächenrauheit 1,5 μm laut Herstellerangabe', '0.0015'),
+          CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe', '0.007'),
         ],
         initial: rau,
       ),
@@ -362,8 +362,8 @@ final List<CalcDef> calculators = [
           'Rohrmaterial',
           '',
           options: [
-            CalcOption('Edelstahl (k = 0,0015 mm)', '0.0015'),
-            CalcOption('Mehrschichtverbund / PE-RT (k = 0,007 mm)', '0.007'),
+            CalcOption('Edelstahl – Oberflächenrauheit 1,5 μm laut Herstellerangabe', '0.0015'),
+            CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe', '0.007'),
           ],
           initial: '0.0015',
         ),
