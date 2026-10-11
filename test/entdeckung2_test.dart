@@ -2,17 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:werkcalc/katalog.dart';
 
 void main() {
-  test('Werkstoffe', () {
-    final k = baueKatalog();
-    final b = StringBuffer();
-    for (final kw in ['Kupfer', 'Edelstahl', 'Mehrschicht', 'Verbund', 'PE-X', 'PE-RT']) {
+  for (final kw in ['Edelstahl', 'Mehrschicht', 'PE-X', 'PE-RT']) {
+    test('W $kw', () {
+      final k = baueKatalog();
       final m = <String, List<String>>{};
       for (final a in k) {
-        if (a.name.contains(kw)) (m[a.familie] ??= []).add(a.name);
+        if (a.name.contains(kw) || a.familie.contains(kw)) (m[a.familie] ??= []).add(a.name);
       }
-      b.writeln('=$kw');
-      m.forEach((f, l) => b.writeln('$f(${l.length}): ${l.first}${l.length > 1 ? ' / ${l[1]}' : ''}'));
-    }
-    fail(b.toString());
-  });
+      final b = StringBuffer('=$kw\n');
+      m.forEach((f, l) => b.writeln('$f(${l.length}): ${l.first}'));
+      fail(b.toString());
+    });
+  }
 }
