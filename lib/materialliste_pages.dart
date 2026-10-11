@@ -10,6 +10,7 @@ import 'materialliste.dart';
 import 'produkt_bild.dart';
 import 'materialliste_store.dart';
 import 'pdf_materialliste.dart';
+import 'vorlagen_page.dart';
 
 // ─────────────────────────── Hilfsdialoge ───────────────────────────
 
@@ -401,10 +402,25 @@ class _MaterialListenTabState extends State<MaterialListenTab> {
           return Column(children: [if (hinweis != null) hinweis, Expanded(child: liste)]);
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _neu,
-        icon: const Icon(Icons.add),
-        label: const Text('Neue Baustelle'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'vorlage_fab',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const VorlagenAuswahlPage()),
+            ),
+            icon: const Icon(Icons.dashboard_customize),
+            label: const Text('Aus Vorlage'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            onPressed: _neu,
+            icon: const Icon(Icons.add),
+            label: const Text('Neue Baustelle'),
+          ),
+        ],
       ),
     );
   }
