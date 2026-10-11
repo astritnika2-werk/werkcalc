@@ -6,7 +6,7 @@ Rohrreibungszahl nach Colebrook-White (laminar 64/Re). Siehe `reibungsbeiwert` i
 | Auswahl in der App | Wert | Quelle | Einschränkung |
 |---|---|---|---|
 | Edelstahl – Oberflächenrauheit 1,5 μm laut Herstellerangabe | 0,0015 mm | Pipelife, Technisches Handbuch C-Press Edelstahl & C-Stahl (Ausgabe 4/2023), Abschnitt 5.1, Tabelle technische Daten: „Oberflächenrauheit 1,5 μm“ | Herstellerangabe für dieses System. Das Dokument bezeichnet den Wert nicht als „k“. **Kein allgemeingültiger Wert für jedes Edelstahlrohr.** WerkCalc verwendet ihn als k. |
-| Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe | 0,007 mm | Pipetec, Technisches Handbuch (Produktkatalog 2026), Tabelle „Rohrwandrauhigkeitswerte“: Pipetec/Kunststoff 0,007 mm | Herstellerangabe für Pipetec-Verbundrohr / PE-RT. |
+| Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe (Pipetec) | 0,007 mm | Pipetec, Technisches Handbuch (Produktkatalog 2026), Tabelle „Rohrwandrauhigkeitswerte“: Pipetec/Kunststoff 0,007 mm | Herstellerangabe für Pipetec-Verbundrohr / PE-RT (dort auch als Oberflächenrauigkeit 0,007 mm je Abmessung angegeben). **Nicht als allgemeiner Wert für alle Mehrschichtverbund- oder PE-RT-Rohre anderer Hersteller zu verstehen.** |
 
 Kupfer: Dieselbe Pipetec-Tabelle nennt 0,0015 mm (neu) für Kupfer; Kupfer ist in der App nicht separat wählbar.
 

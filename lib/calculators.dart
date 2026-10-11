@@ -60,7 +60,7 @@ Widget _pumpePage({
         '',
         options: const [
           CalcOption('Edelstahl – Oberflächenrauheit 1,5 μm laut Herstellerangabe', '0.0015'),
-          CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe', '0.007'),
+          CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe (Pipetec)', '0.007'),
         ],
         initial: rau,
       ),
@@ -363,7 +363,7 @@ final List<CalcDef> calculators = [
           '',
           options: [
             CalcOption('Edelstahl – Oberflächenrauheit 1,5 μm laut Herstellerangabe', '0.0015'),
-            CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe', '0.007'),
+            CalcOption('Mehrschichtverbund / PE-RT – k = 0,007 mm laut Herstellerangabe (Pipetec)', '0.007'),
           ],
           initial: '0.0015',
         ),
